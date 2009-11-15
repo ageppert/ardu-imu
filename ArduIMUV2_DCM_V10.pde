@@ -27,6 +27,8 @@
 #define PRINT_EULER 1 //Will print the Euler angles Roll, Pitch and Yaw
 #define PRINT_GPS 0
 
+#define ADC_WARM_CYCLES 75
+
 //Sensor: GYROX, GYROY, GYROZ, ACCELX, ACCELY, ACCELZ
 float SENSOR_SIGN[]={1,-1,-1,-1,1,-1}; //{1,1,-1,1,-1,1}Used to change the polarity of the sensors{-1,1,-1,-1,-1,1}
 
@@ -124,7 +126,7 @@ void setup()
   Analog_Init();
   
   
-  for(int c=0; c<75; c++)
+  for(int c=0; c<ADC_WARM_CYCLES; c++)
   {
     read_adc_raw();
     
