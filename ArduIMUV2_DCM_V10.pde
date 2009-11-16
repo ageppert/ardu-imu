@@ -108,6 +108,7 @@ float speed_3d=0; //Speed (3-D)  (not used)
 volatile uint8_t MuxSel=0;
 volatile uint8_t analog_reference = DEFAULT;
 volatile int16_t analog_buffer[8];
+volatile uint8_t analog_count[8];
 
 void test(float value[9],int pos)
 {
