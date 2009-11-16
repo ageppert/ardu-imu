@@ -1,11 +1,29 @@
 void read_adc_raw(void)
 {
-     AN[0]= ((Anal_Read(6)*.9)+(AN[0]*.1)); // Gx     Anal means Analog.. 
-     AN[1]= ((Anal_Read(7)*.9)+(AN[1]*.1)); // Gy     Maps sensors to correct order 
-     AN[2]= ((Anal_Read(3)*.9)+(AN[2]*.1)); // Gz
-     AN[3]= ((Anal_Read(0)*.9)+(AN[3]*.1)); // Ax
-     AN[4]= ((Anal_Read(1)*.9)+(AN[4]*.1)); // Ay
-     AN[5]= ((Anal_Read(2)*.9)+(AN[5]*.1)); // Az
+     AN[0]= analog_buffer[6]/analog_count[6]; // Gx     Anal means Analog.. 
+     AN[1]= analog_buffer[7]/analog_count[7]; // Gy     Maps sensors to correct order 
+     AN[2]= analog_buffer[3]/analog_count[3]; // Gz
+     AN[3]= analog_buffer[0]/analog_count[0]; // Ax
+     AN[4]= analog_buffer[1]/analog_count[1]; // Ay
+     AN[5]= analog_buffer[2]/analog_count[2]; // Az
+
+  // STOP ADC interrupt at this moment...
+  cli(); // Stop interrupts...
+  //Initialization for the next readings...
+  analog_buffer[0]=0;
+  analog_count[0]=0;
+  analog_buffer[1]=0;
+  analog_count[1]=0;
+  analog_buffer[2]=0;
+  analog_count[2]=0;
+  analog_buffer[3]=0;
+  analog_count[3]=0;
+  analog_buffer[6]=0;
+  analog_count[6]=0;
+  analog_buffer[7]=0;
+  analog_count[7]=0;
+  //Start interrupts again...
+  sei();  // Enable interrupts...
 
 }
 
@@ -92,16 +110,13 @@ void Analog_Init(void)
  ADCSRA|=(1<<ADIE)|(1<<ADEN);
  ADCSRA|= (1<<ADSC);
 }
-//
-int Anal_Read(uint8_t pin)
-{
-  return analog_buffer[pin];
-}
+
 //
 void Analog_Reference(uint8_t mode)
 {
 	analog_reference = mode;
 }
+
 //ADC interrupt vector, this piece of
 //is executed everytime a convertion is done. 
 ISR(ADC_vect)
@@ -109,7 +124,11 @@ ISR(ADC_vect)
   volatile uint8_t low, high;
   low = ADCL;
   high = ADCH;
-  analog_buffer[MuxSel]=(high << 8) | low;
+  if(analog_count[MuxSel]<20)
+  {
+    analog_buffer[MuxSel] += (high << 8) | low;
+    analog_count[MuxSel]++;
+  }
   MuxSel++;
   if(MuxSel >=8) MuxSel=0;
   ADMUX = (analog_reference << 6) | (MuxSel & 0x07);
