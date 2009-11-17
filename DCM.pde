@@ -31,18 +31,26 @@ void roll_pitch_drift(void)
   //Compensation the Roll, Pitch and Yaw drift. 
   static float Scaled_Omega_P[3];
   static float Scaled_Omega_I[3];
+  float Accel_magnitude 0;
+  float Accel_weight 0;
   
   //*****Roll and Pitch***************
-  
+
+  // Calculate the magnitude of the accelerometer vector
+  Accel_magnitude = sqrt(Accel_Vector[0]*Accel_Vector[0] + Accel_Vector[1]*Accel_Vector[1] + Accel_Vector[2]*Accel_Vector[2]);
+  Accel_magnitude = Accel_magnitude / GRAVITY; // Scale to gravity.
+  // Weight for accelerometer info (<0.5G = 0.0, 1G = 1.0 , >1.5G = 0.0)
+  Accel_weight = constrain(1 - 2*abs(1 - Accel_magnitude),0,1);
+
   Vector_Cross_Product(&errorRollPitch[0],&DCM_Matrix[2][0],&Accel_Vector[0]); //adjust the ground of reference
-  Vector_Scale(&Omega_P[0],&errorRollPitch[0],Kp_ROLLPITCH);
+  Vector_Scale(&Omega_P[0],&errorRollPitch[0],Kp_ROLLPITCH*Accel_weight);
   
-  Vector_Scale(&Scaled_Omega_I[0],&errorRollPitch[0],Ki_ROLLPITCH);
+  Vector_Scale(&Scaled_Omega_I[0],&errorRollPitch[0],Ki_ROLLPITCH*Accel_weight);
   Vector_Add(Omega_I,Omega_I,Scaled_Omega_I);
   
   //*****YAW***************
   
-  if(ground_speed<1 && SPEEDFILT)
+  if(ground_speed<SPEEDFILT)
   {
     digitalWrite(7,HIGH);    //  Turn on yellow LED if speed to slow and yaw correction supressed
   }
