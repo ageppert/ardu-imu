@@ -73,9 +73,9 @@ void accel_adjust(void)
 
 void Matrix_update(void)
 {
-  Gyro_Vector[0]=Gyro_Scaled(read_adc(0)); //gyro y roll
-  Gyro_Vector[1]=Gyro_Scaled(read_adc(1)); //gyro x pitch
-  Gyro_Vector[2]=Gyro_Scaled(read_adc(2)); //gyro Z yaw
+  Gyro_Vector[0]=Gyro_Scaled_X(read_adc(0)); //gyro x roll
+  Gyro_Vector[1]=Gyro_Scaled_Y(read_adc(1)); //gyro y pitch
+  Gyro_Vector[2]=Gyro_Scaled_Z(read_adc(2)); //gyro Z yaw
   Accel_Vector[0]=read_adc(3);//x
   Accel_Vector[1]=read_adc(4);//y
   Accel_Vector[2]=read_adc(5);//z

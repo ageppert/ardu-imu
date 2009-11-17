@@ -5,8 +5,13 @@
 #define GRAVITY 101 //this equivalent to 1G in the raw data coming from the accelerometer 
 #define Accel_Scale(x) x*(GRAVITY/9.81)//Scaling the raw data of the accel to actual acceleration in meters for seconds square
 
-#define Gyro_Gain 2.5 //2.5Gyro gain
-#define Gyro_Scaled(x) x*((Gyro_Gain*PI)/360)//Return the scaled ADC raw data of the gyro in radians for second
+#define Gyro_Gain_X 1.25 //X axis Gyro gain
+#define Gyro_Gain_Y 1.25 //Y axis Gyro gain
+#define Gyro_Gain_Z 1.25 //Z axis Gyro gain
+#define Gyro_Scaled_X(x) x*((Gyro_Gain_X*2*PI)/360)//Return the scaled ADC raw data of the gyro in radians for second
+#define Gyro_Scaled_Y(x) x*((Gyro_Gain_Y*2*PI)/360)//Return the scaled ADC raw data of the gyro in radians for second
+#define Gyro_Scaled_Z(x) x*((Gyro_Gain_Z*2*PI)/360)//Return the scaled ADC raw data of the gyro in radians for second
+
 #define G_Dt(x) x*.02 //DT .02 = 20 miliseconds, value used in derivations and integrations
 
 #define ToRad(x) (x*PI)/180.0
@@ -16,6 +21,16 @@
 #define Ki_ROLLPITCH 0.000010 //0.000005Pitch&Roll Integrator Gain
 #define Kp_YAW .5 //.5Yaw Porportional Gain  
 #define Ki_YAW 0.0005 //0.0005Yaw Integrator Gain
+
+/*Select hardware version*/
+#define HARDWARE 1  //1 for original, 2 for flat
+
+#if(HARDWARE==1)
+uint_8t sensors[6] = {0,2,1,3,5,4};
+#endif
+#if(HARDWARE==2)
+uint_8t sensors[6] = {6,7,3,0,1,2};
+#endif
 
 /*Min Speed Filter for Yaw Correction*/
 #define SPEEDFILT 1 //1=use min speed filter for yaw drift cancellation, 0=do not use
