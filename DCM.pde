@@ -31,8 +31,8 @@ void roll_pitch_drift(void)
   //Compensation the Roll, Pitch and Yaw drift. 
   static float Scaled_Omega_P[3];
   static float Scaled_Omega_I[3];
-  float Accel_magnitude 0;
-  float Accel_weight 0;
+  float Accel_magnitude;
+  float Accel_weight;
   
   //*****Roll and Pitch***************
 

@@ -124,11 +124,8 @@ ISR(ADC_vect)
   volatile uint8_t low, high;
   low = ADCL;
   high = ADCH;
-  if(analog_count[MuxSel]<20)
-  {
-    analog_buffer[MuxSel] += (high << 8) | low;
-    analog_count[MuxSel]++;
-  }
+  analog_buffer[MuxSel] += (high << 8) | low;
+  analog_count[MuxSel]++;
   MuxSel++;
   if(MuxSel >=8) MuxSel=0;
   ADMUX = (analog_reference << 6) | (MuxSel & 0x07);

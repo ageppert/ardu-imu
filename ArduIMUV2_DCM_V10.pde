@@ -26,10 +26,10 @@
 #define HARDWARE 1  //1 for original, 2 for flat
 
 #if(HARDWARE==1)
-uint_8t sensors[6] = {0,2,1,3,5,4};
+uint8_t sensors[6] = {0,2,1,3,5,4};
 #endif
 #if(HARDWARE==2)
-uint_8t sensors[6] = {6,7,3,0,1,2};
+uint8_t sensors[6] = {6,7,3,0,1,2};
 #endif
 
 /*Min Speed Filter for Yaw Correction*/
@@ -122,7 +122,7 @@ float speed_3d=0; //Speed (3-D)  (not used)
 
 volatile uint8_t MuxSel=0;
 volatile uint8_t analog_reference = DEFAULT;
-volatile int16_t analog_buffer[8];
+volatile uint16_t analog_buffer[8];
 volatile uint8_t analog_count[8];
 
 void test(float value[9],int pos)
