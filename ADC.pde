@@ -10,18 +10,10 @@ void read_adc_raw(void)
   // STOP ADC interrupt at this moment...
   cli(); // Stop interrupts...
   //Initialization for the next readings...
-  analog_buffer[0]=0;
-  analog_count[0]=0;
-  analog_buffer[1]=0;
-  analog_count[1]=0;
-  analog_buffer[2]=0;
-  analog_count[2]=0;
-  analog_buffer[3]=0;
-  analog_count[3]=0;
-  analog_buffer[6]=0;
-  analog_count[6]=0;
-  analog_buffer[7]=0;
-  analog_count[7]=0;
+  for (int i=0;i<8;i++){
+    analog_buffer[i]=0;
+    analog_count[i]=0;
+  }
   //Start interrupts again...
   sei();  // Enable interrupts...
 
@@ -114,17 +106,17 @@ void Analog_Init(void)
 //
 void Analog_Reference(uint8_t mode)
 {
-	analog_reference = mode;
+  analog_reference = mode;
 }
 
-//ADC interrupt vector, this piece of
+//ADC interrupt vector, this piece of code
 //is executed everytime a convertion is done. 
 ISR(ADC_vect)
 {
   volatile uint8_t low, high;
   low = ADCL;
   high = ADCH;
-  analog_buffer[MuxSel] += (high << 8) | low;
+  analog_buffer[MuxSel] += (high << 8) | low;   // cumulate analog values
   analog_count[MuxSel]++;
   MuxSel++;
   if(MuxSel >=8) MuxSel=0;

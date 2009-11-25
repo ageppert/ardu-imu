@@ -22,27 +22,21 @@
 #define Kp_YAW .5 //.5Yaw Porportional Gain  
 #define Ki_YAW 0.0005 //0.0005Yaw Integrator Gain
 
-/*Select hardware version*/
-#define HARDWARE 1  //1 for original, 2 for flat
-
-#if(HARDWARE==1)
-uint8_t sensors[6] = {0,2,1,3,5,4};
-#endif
-#if(HARDWARE==2)
-uint8_t sensors[6] = {6,7,3,0,1,2};
-#endif
-
-/*Min Speed Filter for Yaw Correction*/
-#define SPEEDFILT 1 //1=use min speed filter for yaw drift cancellation, 0=do not use
+/*Min Speed Filter for Yaw drift Correction*/
+#define SPEEDFILT 1 // >1 use min speed filter for yaw drift cancellation, 0=do not use
 
 /*For debugging propurses*/
 #define OMEGAA 1 //If value = 1 will print the corrected data, 0 will print uncorrected data of the gyros (with drift)
-#define PRINT_DCM 1 //Will print the whole direction cosine matrix
+#define PRINT_DCM 1//Will print the whole direction cosine matrix
 #define PRINT_ANALOGS 1 // If 1 will print the analog raw data
 #define PRINT_EULER 1 //Will print the Euler angles Roll, Pitch and Yaw
 #define PRINT_GPS 0
 
 #define ADC_WARM_CYCLES 75
+
+/*Select hardware version*/
+//uint8_t sensors[6] = {0,2,1,3,5,4};  // For Hardware v1
+uint8_t sensors[6] = {6,7,3,0,1,2};  // For Hardware v2 flat
 
 //Sensor: GYROX, GYROY, GYROZ, ACCELX, ACCELY, ACCELZ
 float SENSOR_SIGN[]={1,-1,-1,-1,1,-1}; //{1,1,-1,1,-1,1}Used to change the polarity of the sensors{-1,1,-1,-1,-1,1}
@@ -119,19 +113,13 @@ long iTOW=0; //GPS Millisecond Time of Week
 long alt=0; //Height above Ellipsoid 
 float speed_3d=0; //Speed (3-D)  (not used)
 
-
 volatile uint8_t MuxSel=0;
 volatile uint8_t analog_reference = DEFAULT;
 volatile uint16_t analog_buffer[8];
 volatile uint8_t analog_count[8];
 
-void test(float value[9],int pos)
-{
-  Serial.print(convert_to_dec(value[pos]));
-}
-
 void setup()
-{
+{ 
   Serial.begin(38400);
   pinMode(2,OUTPUT); //Serial Mux
   digitalWrite(2,HIGH); //Serial Mux
@@ -140,12 +128,10 @@ void setup()
   pinMode(7,OUTPUT); // Yellow LED
   Analog_Reference(EXTERNAL);//Using external analog reference
   Analog_Init();
-  
+  Serial.println("ArduIMU V2 1.07");
   
   for(int c=0; c<ADC_WARM_CYCLES; c++)
-  {
-    read_adc_raw();
-    
+  { 
     digitalWrite(7,LOW);
     digitalWrite(6,HIGH);
     digitalWrite(5,LOW);
@@ -158,19 +144,22 @@ void setup()
   digitalWrite(5,LOW);
   digitalWrite(7,LOW);
   
-  for(int y=0; y<=7; y++)
-  {
+  read_adc_raw();
+  delay(20);
+  read_adc_raw();
+  for(int y=0; y<=5; y++)   // Read initial ADC values for offset.
     AN_OFFSET[y]=AN[y];
-    Serial.println((int)AN_OFFSET[y]);
-  }
-    AN_OFFSET[5]=AN[5]-GRAVITY;
-  //Matrix_Multiply(experiment, experiment2, experiment3);
-
+  AN_OFFSET[5]-=GRAVITY;
+  for(int y=0; y<=5; y++)
+    Serial.println(AN_OFFSET[y]);
+    
+  read_adc_raw();     // ADC initialization
+  timer=millis();
+  delay(20);
 }
 
 void loop()//Main Loop
 {
-  
   //counter++;
   if((millis()-timer)>=20)
   {
@@ -183,10 +172,10 @@ void loop()//Main Loop
     //Turn on the LED when you saturate any of the gyros.
     if((abs(Gyro_Vector[0])>=ToRad(300))||(abs(Gyro_Vector[1])>=ToRad(300))||(abs(Gyro_Vector[2])>=ToRad(300)))
     {
-    gyro_sat=1;
-    digitalWrite(5,HIGH);  
+      gyro_sat=1;
+      digitalWrite(5,HIGH);  
     }
-  
+   
   }
   
   
@@ -196,9 +185,9 @@ void loop()//Main Loop
     {
       digitalWrite(5,HIGH);
       if(gyro_sat>=8)
-      gyro_sat=0;
+        gyro_sat=0;
       else
-      gyro_sat++;
+        gyro_sat++;
     }
     else
     {

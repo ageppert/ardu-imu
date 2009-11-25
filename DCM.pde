@@ -88,8 +88,6 @@ void Matrix_update(void)
   Accel_Vector[1]=read_adc(4);//y
   Accel_Vector[2]=read_adc(5);//z
   
-
-  
   Vector_Add(&Omega[0], &Gyro_Vector[0], &Omega_I[0]);//adding proportional
   Vector_Add(&Omega_Vector[0], &Omega[0], &Omega_P[0]);//adding Integrator
   
