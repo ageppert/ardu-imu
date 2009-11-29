@@ -1,11 +1,11 @@
 void read_adc_raw(void)
 {
-     AN[0]= analog_buffer[sensors[0]]/analog_count[sensors[0]]; // Gx     
-     AN[1]= analog_buffer[sensors[1]]/analog_count[sensors[1]]; // Gy  sensors[] maps sensors to correct order 
-     AN[2]= analog_buffer[sensors[2]]/analog_count[sensors[2]]; // Gz
-     AN[3]= analog_buffer[sensors[3]]/analog_count[sensors[3]]; // Ax
-     AN[4]= analog_buffer[sensors[4]]/analog_count[sensors[4]]; // Ay
-     AN[5]= analog_buffer[sensors[5]]/analog_count[sensors[5]]; // Az
+  AN[0]= analog_buffer[sensors[0]]/analog_count[sensors[0]]; // Gx     
+  AN[1]= analog_buffer[sensors[1]]/analog_count[sensors[1]]; // Gy  sensors[] maps sensors to correct order 
+  AN[2]= analog_buffer[sensors[2]]/analog_count[sensors[2]]; // Gz
+  AN[3]= analog_buffer[sensors[3]]/analog_count[sensors[3]]; // Ax
+  AN[4]= analog_buffer[sensors[4]]/analog_count[sensors[4]]; // Ay
+  AN[5]= analog_buffer[sensors[5]]/analog_count[sensors[5]]; // Az
 
   // STOP ADC interrupt at this moment...
   cli(); // Stop interrupts...

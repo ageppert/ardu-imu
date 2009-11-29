@@ -2,20 +2,25 @@
 // Code by Jordi Munoz and William Premerlani, Supported by Chris Anderson and Nathan Sindle (SparkFun).
 //Version 1.0 for flat board updated by Doug Weibel to correct coordinate system, correct pitch/roll drift cancellation, correct yaw drift cancellation and fix minor gps bug.
 
+// ADC : Voltage reference 3.3v / 10bits(1024 steps) => 3.22mV/ADC step
+// ADXL335 Sensitivity(from datasheet) => 330mV/g, 3.22mV/ADC step => 330/3.22 = 102.48
+// Tested value : 101
 #define GRAVITY 101 //this equivalent to 1G in the raw data coming from the accelerometer 
 #define Accel_Scale(x) x*(GRAVITY/9.81)//Scaling the raw data of the accel to actual acceleration in meters for seconds square
 
-#define Gyro_Gain_X 1.25 //X axis Gyro gain
-#define Gyro_Gain_Y 1.25 //Y axis Gyro gain
-#define Gyro_Gain_Z 1.25 //Z axis Gyro gain
-#define Gyro_Scaled_X(x) x*((Gyro_Gain_X*2*PI)/360)//Return the scaled ADC raw data of the gyro in radians for second
-#define Gyro_Scaled_Y(x) x*((Gyro_Gain_Y*2*PI)/360)//Return the scaled ADC raw data of the gyro in radians for second
-#define Gyro_Scaled_Z(x) x*((Gyro_Gain_Z*2*PI)/360)//Return the scaled ADC raw data of the gyro in radians for second
+#define ToRad(x) (x*0.01745329252)  // *pi/180
+#define ToDeg(x) (x*57.2957795131)  // *180/pi
+
+// LPR530 & LY530 Sensitivity (from datasheet) => 3.33mV/º/s, 3.22mV/ADC step => 1.03
+// Tested values : 0.96,0.96,0.94
+#define Gyro_Gain_X 0.96 //X axis Gyro gain
+#define Gyro_Gain_Y 0.96 //Y axis Gyro gain
+#define Gyro_Gain_Z 0.94 //Z axis Gyro gain
+#define Gyro_Scaled_X(x) x*ToRad(Gyro_Gain_X) //Return the scaled ADC raw data of the gyro in radians for second
+#define Gyro_Scaled_Y(x) x*ToRad(Gyro_Gain_Y) //Return the scaled ADC raw data of the gyro in radians for second
+#define Gyro_Scaled_Z(x) x*ToRad(Gyro_Gain_Z) //Return the scaled ADC raw data of the gyro in radians for second
 
 #define G_Dt(x) x*.02 //DT .02 = 20 miliseconds, value used in derivations and integrations
-
-#define ToRad(x) (x*PI)/180.0
-#define ToDeg(x) (x*180.0)/PI
 
 #define Kp_ROLLPITCH 0.015 //.015 Pitch&Roll Proportional Gain
 #define Ki_ROLLPITCH 0.000010 //0.000005Pitch&Roll Integrator Gain
@@ -23,12 +28,12 @@
 #define Ki_YAW 0.0005 //0.0005Yaw Integrator Gain
 
 /*Min Speed Filter for Yaw drift Correction*/
-#define SPEEDFILT 1 // >1 use min speed filter for yaw drift cancellation, 0=do not use
+#define SPEEDFILT 2 // >1 use min speed filter for yaw drift cancellation, 0=do not use
 
 /*For debugging propurses*/
 #define OMEGAA 1 //If value = 1 will print the corrected data, 0 will print uncorrected data of the gyros (with drift)
-#define PRINT_DCM 1//Will print the whole direction cosine matrix
-#define PRINT_ANALOGS 1 // If 1 will print the analog raw data
+#define PRINT_DCM 0//Will print the whole direction cosine matrix
+#define PRINT_ANALOGS 0 // If 1 will print the analog raw data
 #define PRINT_EULER 1 //Will print the Euler angles Roll, Pitch and Yaw
 #define PRINT_GPS 0
 
@@ -39,7 +44,7 @@
 uint8_t sensors[6] = {6,7,3,0,1,2};  // For Hardware v2 flat
 
 //Sensor: GYROX, GYROY, GYROZ, ACCELX, ACCELY, ACCELZ
-float SENSOR_SIGN[]={1,-1,-1,-1,1,-1}; //{1,1,-1,1,-1,1}Used to change the polarity of the sensors{-1,1,-1,-1,-1,1}
+int SENSOR_SIGN[]={1,-1,-1,-1,1,-1}; //{1,1,-1,1,-1,1}Used to change the polarity of the sensors{-1,1,-1,-1,-1,1}
 
 int long timer=0; //general porpuse timer 
 int long timer24=0; //Second timer used to print values 
@@ -53,6 +58,11 @@ float Omega_Vector[3]= {0,0,0}; //Corrected Gyro_Vector data
 float Omega_P[3]= {0,0,0};//Omega Proportional correction
 float Omega_I[3]= {0,0,0};//Omega Integrator
 float Omega[3]= {0,0,0};
+
+// Euler angles
+float roll;
+float pitch;
+float yaw;
 
 float errorRollPitch[3]= {0,0,0}; 
 float errorYaw[3]= {0,0,0};
@@ -128,7 +138,7 @@ void setup()
   pinMode(7,OUTPUT); // Yellow LED
   Analog_Reference(EXTERNAL);//Using external analog reference
   Analog_Init();
-  Serial.println("ArduIMU V2 1.07");
+  //Serial.println("ArduIMU V2 1.08");
   
   for(int c=0; c<ADC_WARM_CYCLES; c++)
   { 
@@ -158,6 +168,7 @@ void setup()
   delay(20);
 }
 
+
 void loop()//Main Loop
 {
   //counter++;
@@ -168,6 +179,7 @@ void loop()//Main Loop
     Matrix_update(); 
     Normalize();
     roll_pitch_drift();
+    //Euler_angles();
     
     //Turn on the LED when you saturate any of the gyros.
     if((abs(Gyro_Vector[0])>=ToRad(300))||(abs(Gyro_Vector[1])>=ToRad(300))||(abs(Gyro_Vector[2])>=ToRad(300)))
@@ -175,7 +187,6 @@ void loop()//Main Loop
       gyro_sat=1;
       digitalWrite(5,HIGH);  
     }
-   
   }
   
   

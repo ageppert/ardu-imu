@@ -73,8 +73,8 @@ void roll_pitch_drift(void)
 void accel_adjust(void)
 {
  
- Accel_Vector[1]=Accel_Vector[1]-(Accel_Scale(speed_3d)*Omega[2]); 
- Accel_Vector[2]=Accel_Vector[2]+(Accel_Scale(speed_3d)*Omega[1]); 
+ Accel_Vector[1]=Accel_Vector[1]-Accel_Scale(speed_3d*Omega[2]);  // Centripetal force on acc_x : GPS_speed*GyroZ
+ Accel_Vector[2]=Accel_Vector[2]+Accel_Scale(speed_3d*Omega[1]);  // Centripetal force on acc_z : GPS_speed*GyroY
   
 }
 /**************************************************/
@@ -84,9 +84,10 @@ void Matrix_update(void)
   Gyro_Vector[0]=Gyro_Scaled_X(read_adc(0)); //gyro x roll
   Gyro_Vector[1]=Gyro_Scaled_Y(read_adc(1)); //gyro y pitch
   Gyro_Vector[2]=Gyro_Scaled_Z(read_adc(2)); //gyro Z yaw
-  Accel_Vector[0]=read_adc(3);//x
-  Accel_Vector[1]=read_adc(4);//y
-  Accel_Vector[2]=read_adc(5);//z
+  // Low pass filter on accelerometer data (to filter vibrations)
+  Accel_Vector[0]=Accel_Vector[0]*0.5 + float(read_adc(3))*0.5; // acc x
+  Accel_Vector[1]=Accel_Vector[1]*0.5 + float(read_adc(4))*0.5; // acc y
+  Accel_Vector[2]=Accel_Vector[2]*0.5 + float(read_adc(5))*0.5; // acc z
   
   Vector_Add(&Omega[0], &Gyro_Vector[0], &Omega_I[0]);//adding proportional
   Vector_Add(&Omega_Vector[0], &Omega[0], &Omega_P[0]);//adding Integrator
@@ -126,3 +127,17 @@ void Matrix_update(void)
     } 
   }
 }
+
+void Euler_angles(void)
+{
+  #if (OMEGAA==2)         // Only accelerometer info (debugging purposes)
+    roll = atan2(Accel_Vector[1],Accel_Vector[2]);  // atan2(acc_y,acc_z)
+    pitch = -asin((Accel_Vector[0])/(double)GRAVITY); // asin(acc_x)
+    yaw = 0;
+  #else
+    pitch = -asin(DCM_Matrix[2][0]);
+    roll = atan2(DCM_Matrix[2][1],DCM_Matrix[2][2]);
+    yaw = atan2(DCM_Matrix[1][0],DCM_Matrix[0][0]);
+  #endif
+}
+
