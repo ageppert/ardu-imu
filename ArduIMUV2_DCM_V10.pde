@@ -20,8 +20,6 @@
 #define Gyro_Scaled_Y(x) x*ToRad(Gyro_Gain_Y) //Return the scaled ADC raw data of the gyro in radians for second
 #define Gyro_Scaled_Z(x) x*ToRad(Gyro_Gain_Z) //Return the scaled ADC raw data of the gyro in radians for second
 
-#define G_Dt(x) x*.02 //DT .02 = 20 miliseconds, value used in derivations and integrations
-
 #define Kp_ROLLPITCH 0.015 //.015 Pitch&Roll Proportional Gain
 #define Ki_ROLLPITCH 0.000010 //0.000005Pitch&Roll Integrator Gain
 #define Kp_YAW .5 //.5Yaw Porportional Gain  
@@ -33,7 +31,7 @@
 /*For debugging propurses*/
 #define OMEGAA 1 //If value = 1 will print the corrected data, 0 will print uncorrected data of the gyros (with drift)
 #define PRINT_DCM 0//Will print the whole direction cosine matrix
-#define PRINT_ANALOGS 0 // If 1 will print the analog raw data
+#define PRINT_ANALOGS 1 // If 1 will print the analog raw data
 #define PRINT_EULER 1 //Will print the Euler angles Roll, Pitch and Yaw
 #define PRINT_GPS 0
 
@@ -46,8 +44,11 @@ uint8_t sensors[6] = {6,7,3,0,1,2};  // For Hardware v2 flat
 //Sensor: GYROX, GYROY, GYROZ, ACCELX, ACCELY, ACCELZ
 int SENSOR_SIGN[]={1,-1,-1,-1,1,-1}; //{1,1,-1,1,-1,1}Used to change the polarity of the sensors{-1,1,-1,-1,-1,1}
 
-int long timer=0; //general porpuse timer 
-int long timer24=0; //Second timer used to print values 
+float G_Dt=0.02;    // Integration time (DCM algorithm)
+
+long timer=0;   //general porpuse timer
+long timer_old;
+long timer24=0; //Second timer used to print values 
 int AN[8]; //array that store the 6 ADC filtered data
 int AN_OFFSET[8]; //Array that stores the Offset of the gyros
 int EX[8]; //General porpuse array to send information
@@ -174,7 +175,10 @@ void loop()//Main Loop
   //counter++;
   if((millis()-timer)>=20)
   {
+    timer_old = timer;
     timer=millis();
+    G_Dt = (timer-timer_old)/1000.0;    // Real time of loop run. We use this on the DCM algorithm (gyro integration time)
+    
     read_adc_raw(); //ADC Stuff
     Matrix_update(); 
     Normalize();
