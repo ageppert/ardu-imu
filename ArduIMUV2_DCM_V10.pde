@@ -2,6 +2,11 @@
 // Code by Jordi Munoz and William Premerlani, Supported by Chris Anderson and Nathan Sindle (SparkFun).
 //Version 1.0 for flat board updated by Doug Weibel to correct coordinate system, correct pitch/roll drift cancellation, correct yaw drift cancellation and fix minor gps bug.
 
+// Axis definition: X axis pointing forward, Y axis pointing to the right and Z axis pointing down.
+// Positive pitch : nose up
+// Positive roll : right wing down
+// Positive yaw : clockwise
+
 // ADC : Voltage reference 3.3v / 10bits(1024 steps) => 3.22mV/ADC step
 // ADXL335 Sensitivity(from datasheet) => 330mV/g, 3.22mV/ADC step => 330/3.22 = 102.48
 // Tested value : 101
@@ -29,11 +34,13 @@
 #define SPEEDFILT 2 // >1 use min speed filter for yaw drift cancellation, 0=do not use
 
 /*For debugging propurses*/
-#define OMEGAA 1 //If value = 1 will print the corrected data, 0 will print uncorrected data of the gyros (with drift)
-#define PRINT_DCM 0//Will print the whole direction cosine matrix
-#define PRINT_ANALOGS 1 // If 1 will print the analog raw data
-#define PRINT_EULER 1 //Will print the Euler angles Roll, Pitch and Yaw
-#define PRINT_GPS 0
+//OUTPUTMODE=1 will print the corrected data, 0 will print uncorrected data of the gyros (with drift), 2 will print accelerometer only data
+#define OUTPUTMODE 1
+
+#define PRINT_DCM 0     //Will print the whole direction cosine matrix
+#define PRINT_ANALOGS 1 //Will print the analog raw data
+#define PRINT_EULER 1   //Will print the Euler angles Roll, Pitch and Yaw
+#define PRINT_GPS 0     //Will print GPS data
 
 #define ADC_WARM_CYCLES 75
 
@@ -42,7 +49,7 @@
 uint8_t sensors[6] = {6,7,3,0,1,2};  // For Hardware v2 flat
 
 //Sensor: GYROX, GYROY, GYROZ, ACCELX, ACCELY, ACCELZ
-int SENSOR_SIGN[]={1,-1,-1,-1,1,-1}; //{1,1,-1,1,-1,1}Used to change the polarity of the sensors{-1,1,-1,-1,-1,1}
+int SENSOR_SIGN[]={1,-1,-1,1,-1,1}; //{1,-1,-1,-1,1,-1}
 
 float G_Dt=0.02;    // Integration time (DCM algorithm)
 
@@ -155,16 +162,16 @@ void setup()
   digitalWrite(5,LOW);
   digitalWrite(7,LOW);
   
-  read_adc_raw();
+  Read_adc_raw();
   delay(20);
-  read_adc_raw();
+  Read_adc_raw();
   for(int y=0; y<=5; y++)   // Read initial ADC values for offset.
     AN_OFFSET[y]=AN[y];
   AN_OFFSET[5]-=GRAVITY;
   for(int y=0; y<=5; y++)
     Serial.println(AN_OFFSET[y]);
     
-  read_adc_raw();     // ADC initialization
+  Read_adc_raw();     // ADC initialization
   timer=millis();
   delay(20);
 }
@@ -179,11 +186,11 @@ void loop()//Main Loop
     timer=millis();
     G_Dt = (timer-timer_old)/1000.0;    // Real time of loop run. We use this on the DCM algorithm (gyro integration time)
     
-    read_adc_raw(); //ADC Stuff
+    Read_adc_raw();
     Matrix_update(); 
     Normalize();
-    roll_pitch_drift();
-    //Euler_angles();
+    Drift_correction();
+    Euler_angles();
     
     //Turn on the LED when you saturate any of the gyros.
     if((abs(Gyro_Vector[0])>=ToRad(300))||(abs(Gyro_Vector[1])>=ToRad(300))||(abs(Gyro_Vector[2])>=ToRad(300)))
@@ -192,7 +199,6 @@ void loop()//Main Loop
       digitalWrite(5,HIGH);  
     }
   }
-  
   
     if((millis()-timer24)>=100)
   {

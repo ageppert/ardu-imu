@@ -26,7 +26,7 @@ void Normalize(void)
 }
 
 /**************************************************/
-void roll_pitch_drift(void)
+void Drift_correction(void)
 {
   //Compensation the Roll, Pitch and Yaw drift. 
   static float Scaled_Omega_P[3];
@@ -39,10 +39,11 @@ void roll_pitch_drift(void)
   // Calculate the magnitude of the accelerometer vector
   Accel_magnitude = sqrt(Accel_Vector[0]*Accel_Vector[0] + Accel_Vector[1]*Accel_Vector[1] + Accel_Vector[2]*Accel_Vector[2]);
   Accel_magnitude = Accel_magnitude / GRAVITY; // Scale to gravity.
+  // Dynamic weighting of accelerometer info (reliability filter)
   // Weight for accelerometer info (<0.5G = 0.0, 1G = 1.0 , >1.5G = 0.0)
   Accel_weight = constrain(1 - 2*abs(1 - Accel_magnitude),0,1);
 
-  Vector_Cross_Product(&errorRollPitch[0],&DCM_Matrix[2][0],&Accel_Vector[0]); //adjust the ground of reference
+  Vector_Cross_Product(&errorRollPitch[0],&Accel_Vector[0],&DCM_Matrix[2][0]); //adjust the ground of reference
   Vector_Scale(&Omega_P[0],&errorRollPitch[0],Kp_ROLLPITCH*Accel_weight);
   
   Vector_Scale(&Scaled_Omega_I[0],&errorRollPitch[0],Ki_ROLLPITCH*Accel_weight);
@@ -70,12 +71,10 @@ void roll_pitch_drift(void)
   }
 }
 /**************************************************/
-void accel_adjust(void)
+void Accel_adjust(void)
 {
- 
- Accel_Vector[1]=Accel_Vector[1]-Accel_Scale(speed_3d*Omega[2]);  // Centripetal force on acc_x : GPS_speed*GyroZ
- Accel_Vector[2]=Accel_Vector[2]+Accel_Scale(speed_3d*Omega[1]);  // Centripetal force on acc_z : GPS_speed*GyroY
-  
+ Accel_Vector[1] += Accel_Scale(speed_3d*Omega[2]);  // Centrifugal force on Acc_y = GPS_speed*GyroZ
+ Accel_Vector[2] -= Accel_Scale(speed_3d*Omega[1]);  // Centrifugal force on Acc_z = GPS_speed*GyroY 
 }
 /**************************************************/
 
@@ -84,17 +83,17 @@ void Matrix_update(void)
   Gyro_Vector[0]=Gyro_Scaled_X(read_adc(0)); //gyro x roll
   Gyro_Vector[1]=Gyro_Scaled_Y(read_adc(1)); //gyro y pitch
   Gyro_Vector[2]=Gyro_Scaled_Z(read_adc(2)); //gyro Z yaw
-  // Low pass filter on accelerometer data (to filter vibrations)
-  Accel_Vector[0]=Accel_Vector[0]*0.5 + float(read_adc(3))*0.5; // acc x
-  Accel_Vector[1]=Accel_Vector[1]*0.5 + float(read_adc(4))*0.5; // acc y
-  Accel_Vector[2]=Accel_Vector[2]*0.5 + float(read_adc(5))*0.5; // acc z
   
-  Vector_Add(&Omega[0], &Gyro_Vector[0], &Omega_I[0]);//adding proportional
-  Vector_Add(&Omega_Vector[0], &Omega[0], &Omega_P[0]);//adding Integrator
+  Accel_Vector[0]=read_adc(3); // acc x
+  Accel_Vector[1]=read_adc(4); // acc y
+  Accel_Vector[2]=read_adc(5); // acc z
   
-  accel_adjust();//adjusting centrifugal acceleration.
+  Vector_Add(&Omega[0], &Gyro_Vector[0], &Omega_I[0]);  //adding proportional term
+  Vector_Add(&Omega_Vector[0], &Omega[0], &Omega_P[0]); //adding Integrator term
+
+  Accel_adjust();    //Remove centrifugal acceleration.
   
- #if OMEGAA==1
+ #if OUTPUTMODE==1         
   Update_Matrix[0][0]=0;
   Update_Matrix[0][1]=-G_Dt*Omega_Vector[2];//-z
   Update_Matrix[0][2]=G_Dt*Omega_Vector[1];//y
@@ -104,9 +103,8 @@ void Matrix_update(void)
   Update_Matrix[2][0]=-G_Dt*Omega_Vector[1];//-y
   Update_Matrix[2][1]=G_Dt*Omega_Vector[0];//x
   Update_Matrix[2][2]=0;
-  #endif
-  #if OMEGAA==0
-    Update_Matrix[0][0]=0;
+ #else                    // Uncorrected data (no drift correction)
+  Update_Matrix[0][0]=0;
   Update_Matrix[0][1]=-G_Dt*Gyro_Vector[2];//-z
   Update_Matrix[0][2]=G_Dt*Gyro_Vector[1];//y
   Update_Matrix[1][0]=G_Dt*Gyro_Vector[2];//z
@@ -115,7 +113,7 @@ void Matrix_update(void)
   Update_Matrix[2][0]=-G_Dt*Gyro_Vector[1];
   Update_Matrix[2][1]=G_Dt*Gyro_Vector[0];
   Update_Matrix[2][2]=0;
-  #endif
+ #endif
 
   Matrix_Multiply(DCM_Matrix,Update_Matrix,Temporary_Matrix); //a*b=c
 
@@ -130,8 +128,8 @@ void Matrix_update(void)
 
 void Euler_angles(void)
 {
-  #if (OMEGAA==2)         // Only accelerometer info (debugging purposes)
-    roll = atan2(Accel_Vector[1],Accel_Vector[2]);  // atan2(acc_y,acc_z)
+  #if (OUTPUTMODE==2)         // Only accelerometer info (debugging purposes)
+    roll = atan2(Accel_Vector[1],Accel_Vector[2]);    // atan2(acc_y,acc_z)
     pitch = -asin((Accel_Vector[0])/(double)GRAVITY); // asin(acc_x)
     yaw = 0;
   #else
