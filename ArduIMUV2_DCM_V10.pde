@@ -119,17 +119,26 @@ int gpsFix=1; //This variable store the status of the GPS
 float lat=0; // store the Latitude from the gps
 float lon=0;// Store guess what?
 float alt_MSL=0; //This is the alt.
+long iTOW=0; //GPS Millisecond Time of Week
+long alt=0;  //Height above Ellipsoid 
+float speed_3d=0; //Speed (3-D)
 float ground_speed=0;// This is the velocity your "plane" is traveling in meters for second, 1Meters/Second= 3.6Km/H = 1.944 knots
 float ground_course=90;//This is the runaway direction of you "plane" in degrees
-float climb_rate=0; //This is the velocity you plane will impact the ground (in case of being negative) in meters for seconds
 char data_update_event=0; 
 
-//uBlox Checksum
-byte ck_a=0;
+// GPS UBLOX
+byte ck_a=0;    // Packet checksum
 byte ck_b=0;
-long iTOW=0; //GPS Millisecond Time of Week
-long alt=0; //Height above Ellipsoid 
-float speed_3d=0; //Speed (3-D)  (not used)
+byte UBX_step=0;
+byte UBX_class=0;
+byte UBX_id=0;
+byte UBX_payload_length_hi=0;
+byte UBX_payload_length_lo=0;
+byte UBX_payload_counter=0;
+byte UBX_buffer[40];
+byte UBX_ck_a=0;
+byte UBX_ck_b=0;
+
 
 volatile uint8_t MuxSel=0;
 volatile uint8_t analog_reference = DEFAULT;
