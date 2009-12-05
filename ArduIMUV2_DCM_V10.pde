@@ -31,7 +31,7 @@
 #define Ki_YAW 0.0005 //0.0005Yaw Integrator Gain
 
 /*Min Speed Filter for Yaw drift Correction*/
-#define SPEEDFILT 2 // >1 use min speed filter for yaw drift cancellation, 0=do not use
+#define SPEEDFILT 2 // >1 use min speed filter for yaw drift cancellation, 0=do not use speed filter
 
 /*For debugging propurses*/
 //OUTPUTMODE=1 will print the corrected data, 0 will print uncorrected data of the gyros (with drift), 2 will print accelerometer only data
@@ -41,6 +41,7 @@
 #define PRINT_ANALOGS 1 //Will print the analog raw data
 #define PRINT_EULER 1   //Will print the Euler angles Roll, Pitch and Yaw
 #define PRINT_GPS 0     //Will print GPS data
+#define PRINT_BINARY 0  //Will print binary message and suppress ASCII messages (above)
 
 #define ADC_WARM_CYCLES 75
 
@@ -116,6 +117,7 @@ union int_union {
 
 /*Flight GPS variables*/
 int gpsFix=1; //This variable store the status of the GPS
+int gpsFixnew=0; //used to flag when new gps data received - used for binary output message flags
 float lat=0; // store the Latitude from the gps
 float lon=0;// Store guess what?
 float alt_MSL=0; //This is the alt.

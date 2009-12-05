@@ -142,6 +142,7 @@ void parse_ubx_gps()
       if(UBX_buffer[4] >= 0x03)
       {
         gpsFix=0; //valid position
+        gpsFixnew=1;  //new information available flag for binary message
         digitalWrite(6,HIGH);  //Turn LED when gps is fixed. 
       }
       else
