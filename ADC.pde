@@ -1,27 +1,42 @@
+// We are using an oversampling and averaging method to increase the ADC resolution
+// The theorical ADC resolution is now 11.7 bits. Now we store the ADC readings in float format
 void Read_adc_raw(void)
 {
-  AN[0]= analog_buffer[sensors[0]]/analog_count[sensors[0]]; // Gx     
-  AN[1]= analog_buffer[sensors[1]]/analog_count[sensors[1]]; // Gy  sensors[] maps sensors to correct order 
-  AN[2]= analog_buffer[sensors[2]]/analog_count[sensors[2]]; // Gz
-  AN[3]= analog_buffer[sensors[3]]/analog_count[sensors[3]]; // Ax
-  AN[4]= analog_buffer[sensors[4]]/analog_count[sensors[4]]; // Ay
-  AN[5]= analog_buffer[sensors[5]]/analog_count[sensors[5]]; // Az
-
-  // STOP ADC interrupt at this moment...
-  cli(); // Stop interrupts...
-  //Initialization for the next readings...
+  int i;
+  int temp1;
+  int temp2;
+  
+  // ADC readings...
+  for (i=0;i<8;i++)
+    {
+    temp1= analog_buffer[sensors[i]];   // sensors[] maps sensors to correct order 
+    temp2= analog_count[sensors[i]];
+    if (temp1 != analog_buffer[sensors[i]])  // Check if there was an ADC interrupt during readings...
+      {
+      temp1= analog_buffer[sensors[i]];      // Take a new reading
+      temp2= analog_count[sensors[i]];
+      }
+    AN[i] = float(temp1)/float(temp2);
+    }
+  
+  // Initialization for the next readings...
   for (int i=0;i<8;i++){
     analog_buffer[i]=0;
     analog_count[i]=0;
+    if (analog_buffer[i]!=0) // Check if there was an ADC interrupt during initialization...
+      {
+      analog_buffer[i]=0;    // We do it again...
+      analog_count[i]=0;  
+      }
   }
-  //Start interrupts again...
-  sei();  // Enable interrupts...
-
 }
 
-int read_adc(int select)
+float read_adc(int select)
 {
-  return (AN[select]-AN_OFFSET[select])*SENSOR_SIGN[select];
+  if (SENSOR_SIGN[select]<0)
+    return (AN_OFFSET[select]-AN[select]);
+  else
+    return (AN[select]-AN_OFFSET[select]);
 }
 
 //Activating the ADC interrupts. 
@@ -47,8 +62,8 @@ ISR(ADC_vect)
   analog_buffer[MuxSel] += (high << 8) | low;   // cumulate analog values
   analog_count[MuxSel]++;
   MuxSel++;
-  if(MuxSel >=8) MuxSel=0;
-  ADMUX = (analog_reference << 6) | (MuxSel & 0x07);
+  MuxSel &= 0x07;   //if(MuxSel >=8) MuxSel=0;
+  ADMUX = (analog_reference << 6) | MuxSel;
   // start the conversion
   ADCSRA|= (1<<ADSC);
 }

@@ -122,18 +122,18 @@ void parse_ubx_gps()
       j=0;
       iTOW = join_4_bytes(&UBX_buffer[j]);
       j+=4;
-      lon = (float)join_4_bytes(&UBX_buffer[j])/(float)10000000;
+      lon = (float)join_4_bytes(&UBX_buffer[j])/10000000.0;
       j+=4;
-      lat = (float)join_4_bytes(&UBX_buffer[j])/(float)10000000;
+      lat = (float)join_4_bytes(&UBX_buffer[j])/10000000.0;
       j+=4;
-      alt = (float)join_4_bytes(&UBX_buffer[j])/(float)1000;
+      alt = (float)join_4_bytes(&UBX_buffer[j])/1000.0;
       j+=4;
-      alt_MSL = (float)join_4_bytes(&UBX_buffer[j])/(float)1000;
+      alt_MSL = (float)join_4_bytes(&UBX_buffer[j])/1000.0;
       j+=4;
       /*
-      hacc = (float)join_4_bytes(&UBX_buffer[j])/(float)1000;
+      hacc = (float)join_4_bytes(&UBX_buffer[j])/1000.0;
       j+=4;
-      vacc = (float)join_4_bytes(&UBX_buffer[j])/(float)1000;
+      vacc = (float)join_4_bytes(&UBX_buffer[j])/1000.0;
       j+=4;
       */
       data_update_event|=0x01;
@@ -154,11 +154,11 @@ void parse_ubx_gps()
 
     case 0x12:// ID NAV-VELNED 
       j=16;
-      speed_3d = (float)join_4_bytes(&UBX_buffer[j])/(float)100; // m/s
+      speed_3d = (float)join_4_bytes(&UBX_buffer[j])/100.0; // m/s
       j+=4;
-      ground_speed = (float)join_4_bytes(&UBX_buffer[j])/(float)100; // Ground speed 2D
+      ground_speed = (float)join_4_bytes(&UBX_buffer[j])/100.0; // Ground speed 2D
       j+=4;
-      ground_course = (float)join_4_bytes(&UBX_buffer[j])/(float)100000; // Heading 2D
+      ground_course = (float)join_4_bytes(&UBX_buffer[j])/100000.0; // Heading 2D
       j+=4;
       /*
       sacc = join_4_bytes(&UBX_buffer[j]) // Speed accuracy

@@ -1,6 +1,6 @@
-//Released under Creative Commons License 
+// Released under Creative Commons License 
 // Code by Jordi Munoz and William Premerlani, Supported by Chris Anderson and Nathan Sindle (SparkFun).
-//Version 1.0 for flat board updated by Doug Weibel to correct coordinate system, correct pitch/roll drift cancellation, correct yaw drift cancellation and fix minor gps bug.
+// Version 1.0 for flat board updated by Doug Weibel and Jose Julio
 
 // Axis definition: X axis pointing forward, Y axis pointing to the right and Z axis pointing down.
 // Positive pitch : nose up
@@ -18,17 +18,17 @@
 
 // LPR530 & LY530 Sensitivity (from datasheet) => 3.33mV/º/s, 3.22mV/ADC step => 1.03
 // Tested values : 0.96,0.96,0.94
-#define Gyro_Gain_X 0.96 //X axis Gyro gain
-#define Gyro_Gain_Y 0.96 //Y axis Gyro gain
+#define Gyro_Gain_X 0.92 //X axis Gyro gain
+#define Gyro_Gain_Y 0.92 //Y axis Gyro gain
 #define Gyro_Gain_Z 0.94 //Z axis Gyro gain
 #define Gyro_Scaled_X(x) x*ToRad(Gyro_Gain_X) //Return the scaled ADC raw data of the gyro in radians for second
 #define Gyro_Scaled_Y(x) x*ToRad(Gyro_Gain_Y) //Return the scaled ADC raw data of the gyro in radians for second
 #define Gyro_Scaled_Z(x) x*ToRad(Gyro_Gain_Z) //Return the scaled ADC raw data of the gyro in radians for second
 
-#define Kp_ROLLPITCH 0.015 //.015 Pitch&Roll Proportional Gain
-#define Ki_ROLLPITCH 0.000010 //0.000005Pitch&Roll Integrator Gain
-#define Kp_YAW .5 //.5Yaw Porportional Gain  
-#define Ki_YAW 0.0005 //0.0005Yaw Integrator Gain
+#define Kp_ROLLPITCH 0.015
+#define Ki_ROLLPITCH 0.000010
+#define Kp_YAW .5
+#define Ki_YAW 0.00005
 
 /*Min Speed Filter for Yaw drift Correction*/
 #define SPEEDFILT 2 // >1 use min speed filter for yaw drift cancellation, 0=do not use speed filter
@@ -38,7 +38,7 @@
 #define OUTPUTMODE 1
 
 #define PRINT_DCM 0     //Will print the whole direction cosine matrix
-#define PRINT_ANALOGS 1 //Will print the analog raw data
+#define PRINT_ANALOGS 0 //Will print the analog raw data
 #define PRINT_EULER 1   //Will print the Euler angles Roll, Pitch and Yaw
 #define PRINT_GPS 0     //Will print GPS data
 #define PRINT_BINARY 0  //Will print binary message and suppress ASCII messages (above)
@@ -57,9 +57,8 @@ float G_Dt=0.02;    // Integration time (DCM algorithm)
 long timer=0;   //general porpuse timer
 long timer_old;
 long timer24=0; //Second timer used to print values 
-int AN[8]; //array that store the 6 ADC filtered data
-int AN_OFFSET[8]; //Array that stores the Offset of the gyros
-int EX[8]; //General porpuse array to send information
+float AN[8]; //array that store the 6 ADC filtered data
+float AN_OFFSET[8]; //Array that stores the Offset of the gyros
 
 float Accel_Vector[3]= {0,0,0}; //Store the acceleration in a vector
 float Gyro_Vector[3]= {0,0,0};//Store the gyros rutn rate in a vector
@@ -141,7 +140,7 @@ byte UBX_buffer[40];
 byte UBX_ck_a=0;
 byte UBX_ck_b=0;
 
-
+//ADC variables
 volatile uint8_t MuxSel=0;
 volatile uint8_t analog_reference = DEFAULT;
 volatile uint16_t analog_buffer[8];
@@ -155,9 +154,11 @@ void setup()
   pinMode(5,OUTPUT); //Red LED
   pinMode(6,OUTPUT); // BLue LED
   pinMode(7,OUTPUT); // Yellow LED
+  pinMode(9,OUTPUT);
+  
   Analog_Reference(EXTERNAL);//Using external analog reference
   Analog_Init();
-  //Serial.println("ArduIMU V2 1.08");
+  Serial.println("ArduIMU");
   
   for(int c=0; c<ADC_WARM_CYCLES; c++)
   { 
@@ -176,32 +177,46 @@ void setup()
   Read_adc_raw();
   delay(20);
   Read_adc_raw();
-  for(int y=0; y<=5; y++)   // Read initial ADC values for offset.
+  for(int y=0; y<=5; y++)   // Read first initial ADC values for offset.
     AN_OFFSET[y]=AN[y];
+  delay(20);
+  for(int i=0;i<400;i++)    // We take some readings...
+    {
+    Read_adc_raw();
+    for(int y=0; y<=5; y++)   // Read initial ADC values for offset (averaging).
+      AN_OFFSET[y]=AN_OFFSET[y]*0.8 + AN[y]*0.2;
+    delay(20);
+    }
   AN_OFFSET[5]-=GRAVITY;
   for(int y=0; y<=5; y++)
     Serial.println(AN_OFFSET[y]);
+  
+  delay(250);
     
   Read_adc_raw();     // ADC initialization
   timer=millis();
   delay(20);
 }
 
+int debug_t1;
+int debug_t2;
 
-void loop()//Main Loop
+void loop() //Main Loop
 {
-  //counter++;
-  if((millis()-timer)>=20)
+ 
+  if((millis()-timer)>=20)  // Main loop runs at 50Hz
   {
     timer_old = timer;
     timer=millis();
     G_Dt = (timer-timer_old)/1000.0;    // Real time of loop run. We use this on the DCM algorithm (gyro integration time)
     
+    // *** DCM algorithm
     Read_adc_raw();
     Matrix_update(); 
     Normalize();
     Drift_correction();
     Euler_angles();
+    // ***
     
     //Turn on the LED when you saturate any of the gyros.
     if((abs(Gyro_Vector[0])>=ToRad(300))||(abs(Gyro_Vector[1])>=ToRad(300))||(abs(Gyro_Vector[2])>=ToRad(300)))
@@ -211,7 +226,7 @@ void loop()//Main Loop
     }
   }
   
-    if((millis()-timer24)>=100)
+  if((millis()-timer24)>=100)
   {
     if(gyro_sat>=1)
     {
@@ -229,4 +244,5 @@ void loop()//Main Loop
     decode_gps();
     printdata(); //Send info via serial
   }
+  
 }
