@@ -7,6 +7,9 @@
 // Positive roll : right wing down
 // Positive yaw : clockwise
 
+// Hardware version - Can be used for v1 (daughterboards) or v2 (flat)
+// Select the correct statements at line 53
+
 // ADC : Voltage reference 3.3v / 10bits(1024 steps) => 3.22mV/ADC step
 // ADXL335 Sensitivity(from datasheet) => 330mV/g, 3.22mV/ADC step => 330/3.22 = 102.48
 // Tested value : 101
@@ -45,12 +48,13 @@
 
 #define ADC_WARM_CYCLES 75
 
-/*Select hardware version*/
-//uint8_t sensors[6] = {0,2,1,3,5,4};  // For Hardware v1
-uint8_t sensors[6] = {6,7,3,0,1,2};  // For Hardware v2 flat
+/*Select hardware version - comment out one pair below*/
 
-//Sensor: GYROX, GYROY, GYROZ, ACCELX, ACCELY, ACCELZ
-int SENSOR_SIGN[]={1,-1,-1,1,-1,1}; //{1,-1,-1,-1,1,-1}
+//  uint8_t sensors[6] = {0,2,1,3,5,4};   // Use these two lines for Hardware v1 (w/ daughterboards)
+//  int SENSOR_SIGN[]= {1,-1,1,-1,1,1};  //Sensor: GYROX, GYROY, GYROZ, ACCELX, ACCELY, ACCELZ
+
+  uint8_t sensors[6] = {6,7,3,0,1,2};  // For Hardware v2 flat
+  int SENSOR_SIGN[] = {1,-1,-1,1,-1,1};
 
 float G_Dt=0.02;    // Integration time (DCM algorithm)
 
@@ -216,6 +220,11 @@ void loop() //Main Loop
     Normalize();
     Drift_correction();
     Euler_angles();
+    #if PRINT_BINARY
+      printdata(); //Send info via serial
+    #endif
+
+
     // ***
     
     //Turn on the LED when you saturate any of the gyros.
@@ -242,7 +251,9 @@ void loop() //Main Loop
     }
     timer24=millis();
     decode_gps();
-    printdata(); //Send info via serial
+    #if !PRINT_BINARY
+      printdata(); //Send info via serial
+    #endif
   }
   
 }
