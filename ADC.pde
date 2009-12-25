@@ -7,7 +7,7 @@ void Read_adc_raw(void)
   int temp2;
   
   // ADC readings...
-  for (i=0;i<8;i++)
+  for (i=0;i<6;i++)
     {
     temp1= analog_buffer[sensors[i]];   // sensors[] maps sensors to correct order 
     temp2= analog_count[sensors[i]];
