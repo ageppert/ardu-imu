@@ -59,8 +59,17 @@ ISR(ADC_vect)
   volatile uint8_t low, high;
   low = ADCL;
   high = ADCH;
+
+#if PRINT_BINARY == 1  
   analog_buffer[MuxSel] += (high << 8) | low;   // cumulate analog values
   analog_count[MuxSel]++;
+#else                                           // if we have a lot of serial output we need to guard against overflows
+  if(analog_count[MuxSel]<20) {
+    analog_buffer[MuxSel] += (high << 8) | low;   // cumulate analog values
+    analog_count[MuxSel]++;
+  }
+#endif  
+
   MuxSel++;
   MuxSel &= 0x07;   //if(MuxSel >=8) MuxSel=0;
   ADMUX = (analog_reference << 6) | MuxSel;
