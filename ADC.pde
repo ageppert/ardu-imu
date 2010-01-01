@@ -9,25 +9,20 @@ void Read_adc_raw(void)
   // ADC readings...
   for (i=0;i<6;i++)
     {
-    temp1= analog_buffer[sensors[i]];   // sensors[] maps sensors to correct order 
-    temp2= analog_count[sensors[i]];
-    if (temp1 != analog_buffer[sensors[i]])  // Check if there was an ADC interrupt during readings...
-      {
-      temp1= analog_buffer[sensors[i]];      // Take a new reading
+    do{
+      temp1= analog_buffer[sensors[i]];   // sensors[] maps sensors to correct order 
       temp2= analog_count[sensors[i]];
-      }
+      } while(temp1 != analog_buffer[sensors[i]]);  // Check if there was an ADC interrupt during readings...
+      
     AN[i] = float(temp1)/float(temp2);
     }
   
   // Initialization for the next readings...
   for (int i=0;i<8;i++){
-    analog_buffer[i]=0;
-    analog_count[i]=0;
-    if (analog_buffer[i]!=0) // Check if there was an ADC interrupt during initialization...
-      {
-      analog_buffer[i]=0;    // We do it again...
-      analog_count[i]=0;  
-      }
+    do{
+      analog_buffer[i]=0;
+      analog_count[i]=0;
+      } while(analog_buffer[i]!=0) // Check if there was an ADC interrupt during initialization...
   }
 }
 
@@ -64,7 +59,7 @@ ISR(ADC_vect)
   analog_buffer[MuxSel] += (high << 8) | low;   // cumulate analog values
   analog_count[MuxSel]++;
 #else                                           // if we have a lot of serial output we need to guard against overflows
-  if(analog_count[MuxSel]<20) {
+  if(analog_count[MuxSel]<63) {
     analog_buffer[MuxSel] += (high << 8) | low;   // cumulate analog values
     analog_count[MuxSel]++;
   }

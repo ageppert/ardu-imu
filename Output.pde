@@ -69,66 +69,70 @@ void printdata(void)//ToDeg(x)
 
   #else
       //  This section outputs a binary data message
-      byte IMU_buffer[23];
+      //  Conforms to new binary message standard (12/31/09)
+      byte IMU_buffer[20];
       int tempint;
+      int ck
+      uint tempuint;
       long templong;
       byte IMU_ck_a=0;
       byte IMU_ck_b=0;
-      Serial.print("DW");  // This is the message header
+      Serial.print("ArdU");  // This is the message preamble
       if(gpsFixnew=1)
       {
-        gpsFixnew=0;
-        IMU_buffer[2]=0x07;
+        IMU_buffer[0]=0x12;
+        ck=18;
       }
       else
       {
-        IMU_buffer[2]=0x04;
+        IMU_buffer[0]=0x06;
+        ck=6
       }
-      
+      IMU_buffer[1] = 0x02;      
+
       tempint=ToDeg(roll)*100;  //Roll (degrees) * 100 in 2 bytes
-      IMU_buffer[3]=tempint&0xff;
-      IMU_buffer[4]=(tempint>>8)&0xff;
+      IMU_buffer[2]=tempint&0xff;
+      IMU_buffer[3]=(tempint>>8)&0xff;
       
       tempint=ToDeg(pitch)*100;   //Pitch (degrees) * 100 in 2 bytes
-      IMU_buffer[5]=tempint&0xff;
-      IMU_buffer[6]=(tempint>>8)&0xff;
+      IMU_buffer[4]=tempint&0xff;
+      IMU_buffer[5]=(tempint>>8)&0xff;
       
       tempint=ToDeg(yaw)*100;  //Yaw (degrees) * 100 in 2 bytes
-      IMU_buffer[7]=tempint&0xff;
-      IMU_buffer[8]=(tempint>>8)&0xff;
+      IMU_buffer[6]=tempint&0xff;
+      IMU_buffer[7]=(tempint>>8)&0xff;
       
-      templong=convert_to_dec(lon); //Longitude *10**6 in 4 bytes
-      IMU_buffer[9]=templong&0xff;
-      IMU_buffer[10]=(templong>>8)&0xff;
-      IMU_buffer[11]=(templong>>16)&0xff;
-      IMU_buffer[12]=(templong>>24)&0xff;
+      if (gpsFixnew=1)
+      {
+        gpsFixnew=0;
+        templong=convert_to_dec(lon); //Longitude *10**6 in 4 bytes
+        IMU_buffer[8]=templong&0xff;
+        IMU_buffer[9]=(templong>>8)&0xff;
+        IMU_buffer[10]=(templong>>16)&0xff;
+        IMU_buffer[11]=(templong>>24)&0xff;
       
-      templong=convert_to_dec(lat); //Latitude *10**6 in 4 bytes
-      IMU_buffer[13]=templong&0xff;
-      IMU_buffer[14]=(templong>>8)&0xff;
-      IMU_buffer[15]=(templong>>16)&0xff;
-      IMU_buffer[16]=(templong>>24)&0xff;
+        templong=convert_to_dec(lat); //Latitude *10**6 in 4 bytes
+        IMU_buffer[12]=templong&0xff;
+        IMU_buffer[13]=(templong>>8)&0xff;
+        IMU_buffer[14]=(templong>>16)&0xff;
+        IMU_buffer[15]=(templong>>24)&0xff;
       
-      tempint=alt_MSL*10;   // Altitude MSL in meters * 10 in 2 bytes
-      IMU_buffer[17]=tempint&0xff;
-      IMU_buffer[18]=(tempint>>8)&0xff;
+        tempint=alt_MSL*10;   // Altitude MSL in meters * 10 in 2 bytes
+        IMU_buffer[16]=tempint&0xff;
+        IMU_buffer[17]=(tempint>>8)&0xff;
       
-      tempint=speed_3d*100;   // Speed in M/S * 10 in 2 bytes
-      IMU_buffer[19]=tempint&0xff;
-      IMU_buffer[20]=(tempint>>8)&0xff;
-      
-      tempint=ground_course*100;  //Ground course in degrees * 100 in 2 bytes
-      IMU_buffer[21]=tempint&0xff;
-      IMU_buffer[22]=(tempint>>8)&0xff;
-      
-      for (int i=2;i<23;i++) {
+        tempint=speed_3d*100;   // Speed in M/S * 10 in 2 bytes
+        IMU_buffer[18]=tempint&0xff;
+        IMU_buffer[19]=(tempint>>8)&0xff;
+      }
+
+      for (int i=0;i<ck+2;i++) Serial.print (IMU_buffer[i]);  
+      for (int i=2;i<ck+2;i++) {
           IMU_ck_a+=IMU_buffer[i];  //Calculates checksums
           IMU_ck_b+=IMU_ck_a;       
       }
-      IMU_buffer[0]=IMU_ck_a;
-      IMU_buffer[1]=IMU_ck_b;
-      
-      for (int i=0;i<23;i++) Serial.print (IMU_buffer[i]);  
+      Serial.print(IMU_ck_a);
+      Serial.print(IMU_ck_b);
          
     #endif  
 }
