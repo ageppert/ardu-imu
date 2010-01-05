@@ -15,13 +15,28 @@ void Normalize(void)
   
   Vector_Cross_Product(&temporary[2][0],&temporary[0][0],&temporary[1][0]); // c= a x b //eq.20
   
-  renorm= .5 *(3 - Vector_Dot_Product(&temporary[0][0],&temporary[0][0])); //eq.21
+  renorm= Vector_Dot_Product(&temporary[0][0],&temporary[0][0]); 
+  if (renorm < 1.5625 && renorm > 0.64) {
+    renorm= .5 * (3-renorm);                                                 //eq.21
+  } else {
+    renorm= 1. / sqrt(renorm);
+  }
   Vector_Scale(&DCM_Matrix[0][0], &temporary[0][0], renorm);
   
-  renorm= .5 *(3 - Vector_Dot_Product(&temporary[1][0],&temporary[1][0])); //eq.21
+  renorm= Vector_Dot_Product(&temporary[1][0],&temporary[1][0]); 
+  if (renorm < 1.5625 && renorm > 0.64) {
+    renorm= .5 * (3-renorm);                                                 //eq.21
+  } else {
+    renorm= 1. / sqrt(renorm);
+  }
   Vector_Scale(&DCM_Matrix[1][0], &temporary[1][0], renorm);
   
-  renorm= .5 *(3 - Vector_Dot_Product(&temporary[2][0],&temporary[2][0])); //eq.21
+  renorm= Vector_Dot_Product(&temporary[2][0],&temporary[2][0]); 
+  if (renorm < 1.5625 && renorm > 0.64) {
+    renorm= .5 * (3-renorm);                                                 //eq.21
+  } else {
+    renorm= 1. / sqrt(renorm);
+  }
   Vector_Scale(&DCM_Matrix[2][0], &temporary[2][0], renorm);
 }
 
