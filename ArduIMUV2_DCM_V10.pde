@@ -213,6 +213,10 @@ void loop() //Main Loop
     timer_old = timer;
     timer=millis();
     G_Dt = (timer-timer_old)/1000.0;    // Real time of loop run. We use this on the DCM algorithm (gyro integration time)
+    if(G_Dt > 1)
+      {
+        G_Dt = 0;  //keeps dt from blowing up, goes to zero to keep gyros from departing
+      }
     
     // *** DCM algorithm
     Read_adc_raw();
