@@ -77,7 +77,7 @@ void printdata(void)//ToDeg(x)
       long templong;
       byte IMU_ck_a=0;
       byte IMU_ck_b=0;
-      Serial.print("ArdU");  // This is the message preamble
+      Serial.print("DIYd");  // This is the message preamble
       if(gpsFixnew=1)
       {
         IMU_buffer[0]=0x12;
@@ -127,7 +127,7 @@ void printdata(void)//ToDeg(x)
       }
 
       for (int i=0;i<ck+2;i++) Serial.print (IMU_buffer[i]);  
-      for (int i=2;i<ck+2;i++) {
+      for (int i=0;i<ck+2;i++) {
           IMU_ck_a+=IMU_buffer[i];  //Calculates checksums
           IMU_ck_b+=IMU_ck_a;       
       }
