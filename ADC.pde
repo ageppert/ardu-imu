@@ -22,7 +22,7 @@ void Read_adc_raw(void)
     do{
       analog_buffer[i]=0;
       analog_count[i]=0;
-      } while(analog_buffer[i]!=0) // Check if there was an ADC interrupt during initialization...
+      } while(analog_buffer[i]!=0); // Check if there was an ADC interrupt during initialization...
   }
 }
 
