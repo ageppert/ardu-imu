@@ -3,20 +3,20 @@
 void Read_adc_raw(void)
 {
   int i;
-  int temp1;
-  int temp2;
+  uint16_t temp1;    
+  uint8_t temp2;    
   
   // ADC readings...
   for (i=0;i<6;i++)
     {
-    do{
-      temp1= analog_buffer[sensors[i]];   // sensors[] maps sensors to correct order 
-      temp2= analog_count[sensors[i]];
-      } while(temp1 != analog_buffer[sensors[i]]);  // Check if there was an ADC interrupt during readings...
+      do{
+        temp1= analog_buffer[sensors[i]];             // sensors[] maps sensors to correct order 
+        temp2= analog_count[sensors[i]];
+        } while(temp1 != analog_buffer[sensors[i]]);  // Check if there was an ADC interrupt during readings...
       
-    AN[i] = float(temp1)/float(temp2);
+      if (temp2>0) AN[i] = float(temp1)/float(temp2);     // Check for divide by zero 
+            
     }
-  
   // Initialization for the next readings...
   for (int i=0;i<8;i++){
     do{
@@ -28,10 +28,22 @@ void Read_adc_raw(void)
 
 float read_adc(int select)
 {
-  if (SENSOR_SIGN[select]<0)
-    return (AN_OFFSET[select]-AN[select]);
-  else
-    return (AN[select]-AN_OFFSET[select]);
+  float temp;
+  if (SENSOR_SIGN[select]<0){
+    temp = (AN_OFFSET[select]-AN[select]);
+    if (abs(temp)>900) {
+      Serial.print("ADC being constrained from ");
+      Serial.println(temp);
+    }
+    return constrain(temp,-900,900);             //Throw out nonsensical values
+  } else {
+    temp = (AN[select]-AN_OFFSET[select]); 
+    if (abs(temp)>900) {
+      Serial.print("ADC being constrained from ");
+      Serial.println(temp);
+    } 
+    return constrain(temp,-900,900);
+  }
 }
 
 //Activating the ADC interrupts. 
@@ -55,16 +67,10 @@ ISR(ADC_vect)
   low = ADCL;
   high = ADCH;
 
-#if PRINT_BINARY == 1  
-  analog_buffer[MuxSel] += (high << 8) | low;   // cumulate analog values
-  analog_count[MuxSel]++;
-#else                                           // if we have a lot of serial output we need to guard against overflows
   if(analog_count[MuxSel]<63) {
-    analog_buffer[MuxSel] += (high << 8) | low;   // cumulate analog values
-    analog_count[MuxSel]++;
+        analog_buffer[MuxSel] += (high << 8) | low;   // cumulate analog values
+        analog_count[MuxSel]++;
   }
-#endif  
-
   MuxSel++;
   MuxSel &= 0x07;   //if(MuxSel >=8) MuxSel=0;
   ADMUX = (analog_reference << 6) | MuxSel;

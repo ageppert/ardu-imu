@@ -4,6 +4,7 @@ void Normalize(void)
   float error=0;
   float temporary[3][3];
   float renorm=0;
+  boolean problem=FALSE;
   
   error= -Vector_Dot_Product(&DCM_Matrix[0][0],&DCM_Matrix[1][0])*.5; //eq.19
 
@@ -16,28 +17,56 @@ void Normalize(void)
   Vector_Cross_Product(&temporary[2][0],&temporary[0][0],&temporary[1][0]); // c= a x b //eq.20
   
   renorm= Vector_Dot_Product(&temporary[0][0],&temporary[0][0]); 
-  if (renorm < 1.5625 && renorm > 0.64) {
+  if (renorm < 1.5625f && renorm > 0.64f) {
     renorm= .5 * (3-renorm);                                                 //eq.21
+  } else if (renorm < 100.0f && renorm > 0.01f) {
+    renorm= 1. / sqrt(renorm);  
+    Serial.println("Square root called in renormalization");  
   } else {
-    renorm= 1. / sqrt(renorm);
+    problem = TRUE;
+    Serial.print("Problem detected!   Renorm 1 = ");
+    Serial.println(renorm);
   }
-  Vector_Scale(&DCM_Matrix[0][0], &temporary[0][0], renorm);
+      Vector_Scale(&DCM_Matrix[0][0], &temporary[0][0], renorm);
   
   renorm= Vector_Dot_Product(&temporary[1][0],&temporary[1][0]); 
-  if (renorm < 1.5625 && renorm > 0.64) {
+  if (renorm < 1.5625f && renorm > 0.64f) {
     renorm= .5 * (3-renorm);                                                 //eq.21
+  } else if (renorm < 100.0f && renorm > 0.01f) {
+    renorm= 1. / sqrt(renorm);    
+    Serial.println("Square root called in renormalization");
   } else {
-    renorm= 1. / sqrt(renorm);
+    problem = TRUE;
+    Serial.print("Problem detected!   Renorm 2 = ");
+    Serial.println(renorm);
   }
   Vector_Scale(&DCM_Matrix[1][0], &temporary[1][0], renorm);
   
   renorm= Vector_Dot_Product(&temporary[2][0],&temporary[2][0]); 
-  if (renorm < 1.5625 && renorm > 0.64) {
+  if (renorm < 1.5625f && renorm > 0.64f) {
     renorm= .5 * (3-renorm);                                                 //eq.21
+  } else if (renorm < 100.0f && renorm > 0.01f) {
+    renorm= 1. / sqrt(renorm);  
+    Serial.println("Square root called in renormalization");  
   } else {
-    renorm= 1. / sqrt(renorm);
+    problem = TRUE;
+    Serial.print("Problem detected!   Renorm 3 = ");
+    Serial.println(renorm);
   }
   Vector_Scale(&DCM_Matrix[2][0], &temporary[2][0], renorm);
+  
+  if (problem) {                // Our solution is blowing up and we will force back to initial condition.  Hope we are not upside down!
+      DCM_Matrix[0][0]= 1.0f;
+      DCM_Matrix[0][1]= 0.0f;
+      DCM_Matrix[0][2]= 0.0f;
+      DCM_Matrix[1][0]= 0.0f;
+      DCM_Matrix[1][1]= 1.0f;
+      DCM_Matrix[1][2]= 0.0f;
+      DCM_Matrix[2][0]= 0.0f;
+      DCM_Matrix[2][1]= 0.0f;
+      DCM_Matrix[2][2]= 1.0f;
+      problem = FALSE;  
+  }
 }
 
 /**************************************************/
@@ -48,6 +77,7 @@ void Drift_correction(void)
   static float Scaled_Omega_I[3];
   float Accel_magnitude;
   float Accel_weight;
+  float Integrator_magnitude;
   
   //*****Roll and Pitch***************
 
@@ -56,19 +86,19 @@ void Drift_correction(void)
   Accel_magnitude = Accel_magnitude / GRAVITY; // Scale to gravity.
   // Dynamic weighting of accelerometer info (reliability filter)
   // Weight for accelerometer info (<0.5G = 0.0, 1G = 1.0 , >1.5G = 0.0)
-  Accel_weight = constrain(1 - 2*abs(1 - Accel_magnitude),0,1);
+  Accel_weight = constrain(1 - 2*abs(1 - Accel_magnitude),0,1);  //  
 
   Vector_Cross_Product(&errorRollPitch[0],&Accel_Vector[0],&DCM_Matrix[2][0]); //adjust the ground of reference
   Vector_Scale(&Omega_P[0],&errorRollPitch[0],Kp_ROLLPITCH*Accel_weight);
   
   Vector_Scale(&Scaled_Omega_I[0],&errorRollPitch[0],Ki_ROLLPITCH*Accel_weight);
-  Vector_Add(Omega_I,Omega_I,Scaled_Omega_I);
+  Vector_Add(Omega_I,Omega_I,Scaled_Omega_I);     
   
   //*****YAW***************
   
   if(ground_speed<SPEEDFILT)
   {
-    digitalWrite(7,HIGH);    //  Turn on yellow LED if speed to slow and yaw correction supressed
+    digitalWrite(7,HIGH);    //  Turn on yellow LED if speed too slow and yaw correction supressed
   }
   else
   {
@@ -81,9 +111,20 @@ void Drift_correction(void)
     Vector_Add(Omega_P,Omega_P,Scaled_Omega_P);//Adding  Proportional.
   
     Vector_Scale(&Scaled_Omega_I[0],&errorYaw[0],Ki_YAW);//.00001Integrator
-    Vector_Add(Omega_I,Omega_I,Scaled_Omega_I);//adding integrator to the Omega_I
+    Vector_Add(Omega_I,Omega_I,Scaled_Omega_I);//adding integrator to the Omega_I   
     digitalWrite(7,LOW);
   }
+  
+  //  Here we will place a limit on the integrator so that the integrator cannot ever exceed half the saturation limit of the gyros
+  Integrator_magnitude = sqrt(Vector_Dot_Product(Omega_I,Omega_I));
+  if (Integrator_magnitude > ToRad(300)) {
+    Vector_Scale(Omega_I,Omega_I,0.5f*ToRad(300)/Integrator_magnitude);
+    Serial.print("Integrator being contrained from ");
+    Serial.print(ToDeg(Integrator_magnitude));
+    Serial.println(" degrees");
+  }
+  
+  
 }
 /**************************************************/
 void Accel_adjust(void)
