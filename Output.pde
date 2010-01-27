@@ -72,8 +72,8 @@ void printdata(void)//ToDeg(x)
       //  Conforms to new binary message standard (12/31/09)
       byte IMU_buffer[20];
       int tempint;
-      int ck
-      uint tempuint;
+      int ck;
+      uint8_t tempuint;
       long templong;
       byte IMU_ck_a=0;
       byte IMU_ck_b=0;

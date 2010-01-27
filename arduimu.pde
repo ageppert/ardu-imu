@@ -10,6 +10,8 @@
 // Hardware version - Can be used for v1 (daughterboards) or v2 (flat)
 // Select the correct statements at line 53
 
+#include <avr/eeprom.h>
+
 // ADC : Voltage reference 3.3v / 10bits(1024 steps) => 3.22mV/ADC step
 // ADXL335 Sensitivity(from datasheet) => 330mV/g, 3.22mV/ADC step => 330/3.22 = 102.48
 // Tested value : 101
@@ -33,6 +35,9 @@
 #define Kp_YAW .5
 #define Ki_YAW 0.00005
 
+/* Enable Air Start uses Remove Before Fly flag - connection to pin 6 on ArduPilot */
+#define ENABLE_AIR_START 1  //  1 if using Remove Before Fly, 0 if not
+
 /*Min Speed Filter for Yaw drift Correction*/
 #define SPEEDFILT 2 // >1 use min speed filter for yaw drift cancellation, 0=do not use speed filter
 
@@ -44,7 +49,7 @@
 #define PRINT_ANALOGS 0 //Will print the analog raw data
 #define PRINT_EULER 0   //Will print the Euler angles Roll, Pitch and Yaw
 #define PRINT_GPS 0     //Will print GPS data
-#define PRINT_BINARY 0  //Will print binary message and suppress ASCII messages (above)
+#define PRINT_BINARY 1  //Will print binary message and suppress ASCII messages (above)
 
 #define ADC_WARM_CYCLES 75
 
@@ -54,7 +59,7 @@
 /*Select hardware version - comment out one pair below*/
 
 //  uint8_t sensors[6] = {0,2,1,3,5,4};   // Use these two lines for Hardware v1 (w/ daughterboards)
-//  int SENSOR_SIGN[]= {1,-1,1,-1,1,1};  //Sensor: GYROX, GYROY, GYROZ, ACCELX, ACCELY, ACCELZ
+//  int SENSOR_SIGN[]= {1,-1,1,-1,1,-1};  //Sensor: GYROX, GYROY, GYROZ, ACCELX, ACCELY, ACCELZ
 
   uint8_t sensors[6] = {6,7,3,0,1,2};  // For Hardware v2 flat
   int SENSOR_SIGN[] = {1,-1,-1,1,-1,1};
@@ -153,6 +158,7 @@ volatile uint8_t analog_reference = DEFAULT;
 volatile uint16_t analog_buffer[8];
 volatile uint8_t analog_count[8];
 
+//*****************************************************************************************
 void setup()
 { 
   Serial.begin(38400);
@@ -161,43 +167,22 @@ void setup()
   pinMode(5,OUTPUT); //Red LED
   pinMode(6,OUTPUT); // BLue LED
   pinMode(7,OUTPUT); // Yellow LED
-  pinMode(9,OUTPUT);
+  pinMode(8,INPUT);  // Remove Before Fly flag (pin 6 on ArduPilot)
+  digitalWrite(8,HIGH);  // The Remove Before Fly flag will pull pin 8 low if connected.
+
   
   Analog_Reference(EXTERNAL);//Using external analog reference
   Analog_Init();
   Serial.println("ArduIMU");
   
-  for(int c=0; c<ADC_WARM_CYCLES; c++)
-  { 
-    digitalWrite(7,LOW);
-    digitalWrite(6,HIGH);
-    digitalWrite(5,LOW);
-    delay(50);
-    Read_adc_raw();
-    digitalWrite(7,HIGH);
-    digitalWrite(6,LOW);
-    digitalWrite(5,HIGH);
-    delay(50);
+  if(ENABLE_AIR_START && digitalRead(8) == HIGH){
+      Serial.println("***Air Start");
+      startup_air();
+  }else{
+      Serial.println("***Ground Start");
+      startup_ground();
   }
-  digitalWrite(5,LOW);
-  digitalWrite(7,LOW);
-  
-  Read_adc_raw();
-  delay(20);
-  Read_adc_raw();
-  for(int y=0; y<=5; y++)   // Read first initial ADC values for offset.
-    AN_OFFSET[y]=AN[y];
-  delay(20);
-  for(int i=0;i<400;i++)    // We take some readings...
-    {
-    Read_adc_raw();
-    for(int y=0; y<=5; y++)   // Read initial ADC values for offset (averaging).
-      AN_OFFSET[y]=AN_OFFSET[y]*0.8 + AN[y]*0.2;
-    delay(20);
-    }
-  AN_OFFSET[5]-=GRAVITY;
-  for(int y=0; y<=5; y++)
-    Serial.println(AN_OFFSET[y]);
+ 
   
   delay(250);
     
@@ -206,9 +191,7 @@ void setup()
   delay(20);
 }
 
-int debug_t1;
-int debug_t2;
-
+//***************************************************************************************
 void loop() //Main Loop
 {
  
@@ -265,3 +248,83 @@ void loop() //Main Loop
   }
   
 }
+
+//********************************************************************************
+void startup_ground(void)
+{
+  uint16_t temp=0;
+  
+  for(int c=0; c<ADC_WARM_CYCLES; c++)
+  { 
+    digitalWrite(7,LOW);
+    digitalWrite(6,HIGH);
+    digitalWrite(5,LOW);
+    delay(50);
+    Read_adc_raw();
+    digitalWrite(7,HIGH);
+    digitalWrite(6,LOW);
+    digitalWrite(5,HIGH);
+    delay(50);
+  }
+  digitalWrite(5,LOW);
+  digitalWrite(7,LOW);
+  
+  Read_adc_raw();
+  delay(20);
+  Read_adc_raw();
+  for(int y=0; y<=5; y++)   // Read first initial ADC values for offset.
+    AN_OFFSET[y]=AN[y];
+  delay(20);
+  for(int i=0;i<400;i++)    // We take some readings...
+    {
+    Read_adc_raw();
+    for(int y=0; y<=5; y++)   // Read initial ADC values for offset (averaging).
+      AN_OFFSET[y]=AN_OFFSET[y]*0.8 + AN[y]*0.2;
+    delay(20);
+    }
+  AN_OFFSET[5]-=GRAVITY*SENSOR_SIGN[5];
+  for(int y=0; y<=5; y++)
+  {
+    Serial.println(AN_OFFSET[y]);
+    temp = ((AN_OFFSET[y]-200.f)*100.0f);
+    eeprom_busy_wait();
+    eeprom_write_word((uint16_t *)	(y*2+2), temp);	
+  }
+  Serial.println("***Ground Start complete");
+}
+
+//************************************************************************************
+void startup_air(void)
+{
+  uint16_t temp=0;
+
+  for(int y=0; y<=5; y++)
+  {
+    eeprom_busy_wait();
+    temp = eeprom_read_word((uint16_t *)	(y*2+2));
+    AN_OFFSET[y] = temp/100.f+200.f;	
+    Serial.println(AN_OFFSET[y]);
+  }
+      Serial.println("***Air Start complete");
+}    
+    
+/*
+EEPROM memory map
+
+0 0x00		Unused
+1 0x01 		..
+2 0x02 		AN_OFFSET[0]
+3 0x03 		..
+4 0x04 		AN_OFFSET[1]
+5 0x05 		..
+6 0x06 		AN_OFFSET[2]
+7 0x07 		..
+8 0x08 		AN_OFFSET[3]
+9 0x09 		..
+10 0x0A		AN_OFFSET[4]
+11 0x0B		..
+12 0x0C		AN_OFFSET[5]
+13 0x0D		..	
+14 0x0E		Unused
+15 0x0F		..
+*/
