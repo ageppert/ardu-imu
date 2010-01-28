@@ -21,11 +21,26 @@ void Normalize(void)
     renorm= .5 * (3-renorm);                                                 //eq.21
   } else if (renorm < 100.0f && renorm > 0.01f) {
     renorm= 1. / sqrt(renorm);  
-    Serial.println("Square root called in renormalization");  
+	#ifdef PRINT_DEBUG
+    Serial.print("!!!SQT:1,RNM:");
+    Serial.print (renorm);
+    Serial.print (",ERR:");
+    Serial.print (error);
+    Serial.print (",TOW:");
+    Serial.print (iTOW);  
+    Serial.println("***");    
+#endif
   } else {
     problem = TRUE;
-    Serial.print("Problem detected!   Renorm 1 = ");
-    Serial.println(renorm);
+	#ifdef PRINT_DEBUG
+    Serial.print("!!!PRB:1,RNM:");
+    Serial.print (renorm);
+    Serial.print (",ERR:");
+    Serial.print (error);
+    Serial.print (",TOW:");
+    Serial.print (iTOW);  
+    Serial.println("***");    
+#endif
   }
       Vector_Scale(&DCM_Matrix[0][0], &temporary[0][0], renorm);
   
@@ -34,11 +49,26 @@ void Normalize(void)
     renorm= .5 * (3-renorm);                                                 //eq.21
   } else if (renorm < 100.0f && renorm > 0.01f) {
     renorm= 1. / sqrt(renorm);    
-    Serial.println("Square root called in renormalization");
+#ifdef PRINT_DEBUG
+    Serial.print("!!!SQT:2,RNM:");
+    Serial.print (renorm);
+    Serial.print (",ERR:");
+    Serial.print (error);
+    Serial.print (",TOW:");
+    Serial.print (iTOW);  
+    Serial.println("***");    
+#endif
   } else {
     problem = TRUE;
-    Serial.print("Problem detected!   Renorm 2 = ");
-    Serial.println(renorm);
+#ifdef PRINT_DEBUG
+    Serial.print("!!!PRB:2,RNM:");
+    Serial.print (renorm);
+    Serial.print (",ERR:");
+    Serial.print (error);
+    Serial.print (",TOW:");
+    Serial.print (iTOW);  
+    Serial.println("***");    
+#endif
   }
   Vector_Scale(&DCM_Matrix[1][0], &temporary[1][0], renorm);
   
@@ -47,11 +77,24 @@ void Normalize(void)
     renorm= .5 * (3-renorm);                                                 //eq.21
   } else if (renorm < 100.0f && renorm > 0.01f) {
     renorm= 1. / sqrt(renorm);  
-    Serial.println("Square root called in renormalization");  
+#ifdef PRINT_DEBUG
+    Serial.print("!!!SQT:3,RNM:");
+    Serial.print (renorm);
+    Serial.print (",ERR:");
+    Serial.print (error);
+    Serial.print (",TOW:");
+    Serial.print (iTOW);  
+    Serial.println("***");    
+#endif
   } else {
     problem = TRUE;
-    Serial.print("Problem detected!   Renorm 3 = ");
-    Serial.println(renorm);
+#ifdef PRINT_DEBUG
+    Serial.print("!!!PRB:3,RNM:");
+    Serial.print (renorm);
+    Serial.print (",TOW:");
+    Serial.print (iTOW);  
+    Serial.println("***");    
+#endif
   }
   Vector_Scale(&DCM_Matrix[2][0], &temporary[2][0], renorm);
   
@@ -96,11 +139,7 @@ void Drift_correction(void)
   
   //*****YAW***************
   
-  if(ground_speed<SPEEDFILT)
-  {
-    digitalWrite(7,HIGH);    //  Turn on yellow LED if speed too slow and yaw correction supressed
-  }
-  else
+  if(ground_speed>=SPEEDFILT)
   {
     COGX = cos(ToRad(ground_course));
     COGY = sin(ToRad(ground_course));
@@ -112,16 +151,21 @@ void Drift_correction(void)
   
     Vector_Scale(&Scaled_Omega_I[0],&errorYaw[0],Ki_YAW);//.00001Integrator
     Vector_Add(Omega_I,Omega_I,Scaled_Omega_I);//adding integrator to the Omega_I   
-    digitalWrite(7,LOW);
+  
   }
   
   //  Here we will place a limit on the integrator so that the integrator cannot ever exceed half the saturation limit of the gyros
   Integrator_magnitude = sqrt(Vector_Dot_Product(Omega_I,Omega_I));
   if (Integrator_magnitude > ToRad(300)) {
     Vector_Scale(Omega_I,Omega_I,0.5f*ToRad(300)/Integrator_magnitude);
-    Serial.print("Integrator being contrained from ");
-    Serial.print(ToDeg(Integrator_magnitude));
-    Serial.println(" degrees");
+#ifdef PRINT_DEBUG
+    Serial.print("!!!INT:1,MAG:");
+    Serial.print (ToDeg(Integrator_magnitude));
+
+    Serial.print (",TOW:");
+    Serial.print (iTOW);  
+    Serial.println("***");    
+#endif
   }
   
   

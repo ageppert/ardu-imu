@@ -93,8 +93,11 @@ void decode_gps(void)
 	  // We end the GPS read...
         if((ck_a=UBX_ck_a)&&(ck_b=UBX_ck_a))   // Verify the received checksum with the generated checksum.. 
 	  	parse_ubx_gps();               // Parse new GPS packet...
-        //else
-            //Serial.println("Err CHK!!");
+
+#ifdef PRINT_DEBUG
+        else
+            Serial.print("!!!GPS:1,BAD Checksum:1***");    
+#endif
         // Variable initialization
         UBX_step=0;
         UBX_payload_counter=0;

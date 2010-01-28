@@ -4,7 +4,7 @@ void printdata(void)//ToDeg(x)
 
   #if PRINT_BINARY != 1  //Print either Ascii or binary messages
 
-      //Serial.print("!!!");
+      //Serial.print("!!!,");
       #if PRINT_ANALOGS==1
       Serial.print("AN0:");
       Serial.print(read_adc(0));
@@ -63,9 +63,10 @@ void printdata(void)//ToDeg(x)
       Serial.print(ground_speed);
       Serial.print(",FIX:");
       Serial.print((int)gpsFix);
+      Serial.print (",");
       #endif
       
-      //Serial.println("***");    
+      Serial.println("***");    
 
   #else
       //  This section outputs a binary data message
@@ -103,10 +104,9 @@ void printdata(void)//ToDeg(x)
       Serial.print(IMU_ck_b);
          
 	//  This section outputs the gps binary message when new gps data is available
-
-      if(gpsFixnew=1)
+      if(gpsFixnew==1)
       {
-        	gpsFixnew=0;
+        gpsFixnew=0;
       	IMU_ck_a=0;
       	IMU_ck_b=0;
       	Serial.print("DIYd");  // This is the message preamble

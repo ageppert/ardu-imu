@@ -42,14 +42,15 @@
 #define SPEEDFILT 2 // >1 use min speed filter for yaw drift cancellation, 0=do not use speed filter
 
 /*For debugging propurses*/
+#define PRINT_DEBUG 1   //Will print Debug messages
 //OUTPUTMODE=1 will print the corrected data, 0 will print uncorrected data of the gyros (with drift), 2 will print accelerometer only data
 #define OUTPUTMODE 1
 
 #define PRINT_DCM 0     //Will print the whole direction cosine matrix
 #define PRINT_ANALOGS 0 //Will print the analog raw data
-#define PRINT_EULER 0   //Will print the Euler angles Roll, Pitch and Yaw
+#define PRINT_EULER 1   //Will print the Euler angles Roll, Pitch and Yaw
 #define PRINT_GPS 0     //Will print GPS data
-#define PRINT_BINARY 1  //Will print binary message and suppress ASCII messages (above)
+#define PRINT_BINARY 0   //Will print binary message and suppress ASCII messages (above)
 
 #define ADC_WARM_CYCLES 75
 
@@ -58,15 +59,16 @@
 
 /*Select hardware version - comment out one pair below*/
 
-//  uint8_t sensors[6] = {0,2,1,3,5,4};   // Use these two lines for Hardware v1 (w/ daughterboards)
-//  int SENSOR_SIGN[]= {1,-1,1,-1,1,-1};  //Sensor: GYROX, GYROY, GYROZ, ACCELX, ACCELY, ACCELZ
+  uint8_t sensors[6] = {0,2,1,3,5,4};   // Use these two lines for Hardware v1 (w/ daughterboards)
+  int SENSOR_SIGN[]= {1,-1,1,-1,1,-1};  //Sensor: GYROX, GYROY, GYROZ, ACCELX, ACCELY, ACCELZ
 
-  uint8_t sensors[6] = {6,7,3,0,1,2};  // For Hardware v2 flat
-  int SENSOR_SIGN[] = {1,-1,-1,1,-1,1};
+//  uint8_t sensors[6] = {6,7,3,0,1,2};  // For Hardware v2 flat
+//  int SENSOR_SIGN[] = {1,-1,-1,1,-1,1};
 
 float G_Dt=0.02;    // Integration time (DCM algorithm)
 
-long timer=0;   //general porpuse timer
+long timeNow=0; // Hold the milliseond value for now
+long timer=0;   //general purpuse timer
 long timer_old;
 long timer24=0; //Second timer used to print values 
 float AN[8]; //array that store the 6 ADC filtered data
@@ -91,6 +93,7 @@ float COGX=0; //Course overground X axis
 float COGY=1; //Course overground Y axis
 
 unsigned int counter=0;
+unsigned int cycleCount=0;
 byte gyro_sat=0;
 
 float DCM_Matrix[3][3]= {
@@ -165,7 +168,7 @@ void setup()
   pinMode(2,OUTPUT); //Serial Mux
   digitalWrite(2,HIGH); //Serial Mux
   pinMode(5,OUTPUT); //Red LED
-  pinMode(6,OUTPUT); // BLue LED
+  pinMode(6,OUTPUT); // Blue LED
   pinMode(7,OUTPUT); // Yellow LED
   pinMode(8,INPUT);  // Remove Before Fly flag (pin 6 on ArduPilot)
   digitalWrite(8,HIGH);  // The Remove Before Fly flag will pull pin 8 low if connected.
@@ -173,7 +176,7 @@ void setup()
   
   Analog_Reference(EXTERNAL);//Using external analog reference
   Analog_Init();
-  Serial.println("ArduIMU");
+  Serial.println("ArduIMU:");
   
   if(ENABLE_AIR_START && digitalRead(8) == HIGH){
       Serial.println("***Air Start");
@@ -187,18 +190,19 @@ void setup()
   delay(250);
     
   Read_adc_raw();     // ADC initialization
-  timer=millis();
+  timer=DIYmillis();
   delay(20);
 }
 
 //***************************************************************************************
 void loop() //Main Loop
 {
+  timeNow = DIYmillis();
  
-  if((millis()-timer)>=20)  // Main loop runs at 50Hz
+  if((timeNow-timer)>=20)  // Main loop runs at 50Hz
   {
     timer_old = timer;
-    timer=millis();
+    timer = timeNow;
     G_Dt = (timer-timer_old)/1000.0;    // Real time of loop run. We use this on the DCM algorithm (gyro integration time)
     if(G_Dt > 1)
       {
@@ -211,7 +215,7 @@ void loop() //Main Loop
     Normalize();
     Drift_correction();
     Euler_angles();
-    #if PRINT_BINARY
+    #if PRINT_BINARY == 1
       printdata(); //Send info via serial
     #endif
 
@@ -224,27 +228,62 @@ void loop() //Main Loop
       gyro_sat=1;
       digitalWrite(5,HIGH);  
     }
-  }
-  
-  if((millis()-timer24)>=100)
-  {
-    if(gyro_sat>=1)
-    {
-      digitalWrite(5,HIGH);
-      if(gyro_sat>=8)
-        gyro_sat=0;
+ cycleCount++;
+    if (cycleCount >= 5){ 
+      cycleCount = 0;
+      // Do these things every 5th time through the main cycle 
+      // This section gets called every 1000/(20*5) = 10Hz
+      // doing it this way removes the need for another 'millis()' call
+      
+      decode_gps();
+
+      
+      // Display Status on LEDs
+      // GYRO Saturation
+
+
+      if(gyro_sat>=1)
+      {
+        digitalWrite(5,HIGH); //Turn Red LED when gyro is saturated. 
+        if(gyro_sat>=8)  // keep the LED on for 8/10ths of a second
+
+
+          gyro_sat=0;
+        else
+          gyro_sat++;
+      }
       else
-        gyro_sat++;
+      {
+        digitalWrite(5,LOW);
+      }
+      
+      // YAW correction
+      if(ground_speed<SPEEDFILT)
+      {
+        digitalWrite(7,HIGH);    //  Turn on yellow LED if speed too slow and yaw correction supressed
+      }
+      else
+      {
+        digitalWrite(7,LOW);
+      }
+      
+      // GPS Fix
+      if(gpsFix==0)  // yep its backwards 0 means a good fix in GPS world!
+      {
+        digitalWrite(6,HIGH);  //Turn Blue LED when gps is fixed. 
+      }
+      else
+      {
+        digitalWrite(6,LOW);
+      }
+      
+      // 
+
+
+      #if !PRINT_BINARY
+        printdata(); //Send info via serial
+      #endif
     }
-    else
-    {
-      digitalWrite(5,LOW);
-    }
-    timer24=millis();
-    decode_gps();
-    #if !PRINT_BINARY
-      printdata(); //Send info via serial
-    #endif
   }
   
 }
