@@ -4,7 +4,9 @@ void printdata(void)//ToDeg(x)
 
   #if PRINT_BINARY != 1  //Print either Ascii or binary messages
 
-      //Serial.print("!!!,");
+  Serial.print("!!!,VER:");
+  Serial.print(SOFTWARE_VER);  //output the software version
+  Serial.print(",");
       #if PRINT_ANALOGS==1
       Serial.print("AN0:");
       Serial.print(read_adc(0));
@@ -51,6 +53,9 @@ void printdata(void)//ToDeg(x)
       Serial.print (",");
       #endif
        #if PRINT_GPS == 1
+  if(gpsFixnew==1)
+  {
+    gpsFixnew=0;
       Serial.print("LAT:");
       Serial.print((long)(lat*10000000));
       Serial.print(",LON:");
@@ -64,7 +69,10 @@ void printdata(void)//ToDeg(x)
       Serial.print(",FIX:");
       Serial.print((int)gpsFix);
       Serial.print (",");
-      #endif
+  }
+#endif
+  Serial.print("TOW:");
+  Serial.print(iTOW);
       
       Serial.println("***");    
 
@@ -110,8 +118,8 @@ void printdata(void)//ToDeg(x)
       	IMU_ck_a=0;
       	IMU_ck_b=0;
       	Serial.print("DIYd");  // This is the message preamble
-		IMU_buffer[0]=0x0E;
-        	ck=14;
+		IMU_buffer[0]=0x12;
+        	ck=18;
       	IMU_buffer[1] = 0x03;      
 
 
@@ -138,6 +146,11 @@ void printdata(void)//ToDeg(x)
         	tempint=ground_course*100;   // course in degreees * 100 in 2 bytes
         	IMU_buffer[14]=tempint&0xff;
         	IMU_buffer[15]=(tempint>>8)&0xff;
+        
+        	IMU_buffer[16]=iTOW&0xff;
+        	IMU_buffer[17]=(iTOW>>8)&0xff;
+        	IMU_buffer[18]=(iTOW>>16)&0xff;
+        	IMU_buffer[19]=(iTOW>>24)&0xff;
 
       	for (int i=0;i<ck+2;i++) Serial.print (IMU_buffer[i]);  
       	for (int i=0;i<ck+2;i++) {

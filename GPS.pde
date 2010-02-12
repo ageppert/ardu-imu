@@ -1,5 +1,5 @@
 /****************************************************************
-  Here you have all the parsing stuff for uBlox
+ * Here you have all the parsing stuff for uBlox
  ****************************************************************/
  // Code from Jordi, modified by Jose
  
@@ -67,6 +67,18 @@ void decode_gps(void)
         UBX_payload_length_hi=data;
         checksum(UBX_payload_length_hi);
         UBX_step++;
+        if (UBX_payload_length_hi>UBX_MAXPAYLOAD)
+        {
+#if PRINT_DEBUG != 0
+          Serial.print("!!!GPS:1,BAD Payload length:");   
+          Serial.print(UBX_payload_length_hi,DEC);
+          Serial.println("***");    
+#endif
+          UBX_step=0;   //Bad data, so restart to step zero and try again.     
+          UBX_payload_counter=0;
+          ck_a=0;
+          ck_b=0;
+        }
         break;
       case 5:
         UBX_payload_length_lo=data;
@@ -94,7 +106,7 @@ void decode_gps(void)
         if((ck_a=UBX_ck_a)&&(ck_b=UBX_ck_a))   // Verify the received checksum with the generated checksum.. 
 	  	parse_ubx_gps();               // Parse new GPS packet...
 
-#ifdef PRINT_DEBUG
+#if PRINT_DEBUG != 0
         else
             Serial.print("!!!GPS:1,BAD Checksum:1***");    
 #endif
@@ -103,7 +115,7 @@ void decode_gps(void)
         UBX_payload_counter=0;
         ck_a=0;
         ck_b=0;
-        GPS_timer=millis(); //Restarting timer...
+        GPS_timer=DIYmillis(); //Restarting timer...
         break;
 	}
     }    // End for...
@@ -142,7 +154,7 @@ void parse_ubx_gps()
       data_update_event|=0x01;
       break;
     case 0x03://ID NAV-STATUS 
-      if(UBX_buffer[4] >= 0x03)
+     if((UBX_buffer[4] >= 0x03)&&(UBX_buffer[5]&0x01))
       {
         gpsFix=0; //valid position
         gpsFixnew=1;  //new information available flag for binary message

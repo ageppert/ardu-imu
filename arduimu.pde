@@ -7,10 +7,39 @@
 // Positive roll : right wing down
 // Positive yaw : clockwise
 
-// Hardware version - Can be used for v1 (daughterboards) or v2 (flat)
-// Select the correct statements at line 53
-
 #include <avr/eeprom.h>
+
+//**********************************************************************
+//  This section contains user parameters
+//**********************************************************************
+
+// *** NOTE!   Hardware version - Can be used for v1 (daughterboards) or v2 (flat)
+// Select the correct statements at line 76
+
+// Enable Air Start uses Remove Before Fly flag - connection to pin 6 on ArduPilot 
+#define ENABLE_AIR_START 1  //  1 if using Remove Before Fly, 0 if not
+#define RBF_PIN 10    //  Pin number used for Remove Before Fly (recommend 10 on v1 and 8 on v2 hardware)
+
+/*Min Speed Filter for Yaw drift Correction*/
+#define SPEEDFILT 2 // >1 use min speed filter for yaw drift cancellation, 0=do not use speed filter
+
+/*For debugging propurses*/
+#define PRINT_DEBUG 0   //Will print Debug messages
+
+//OUTPUTMODE=1 will print the corrected data, 0 will print uncorrected data of the gyros (with drift), 2 will print accelerometer only data
+#define OUTPUTMODE 1
+
+#define PRINT_DCM 0     //Will print the whole direction cosine matrix
+#define PRINT_ANALOGS 0 //Will print the analog raw data
+#define PRINT_EULER 0   //Will print the Euler angles Roll, Pitch and Yaw
+#define PRINT_GPS 0     //Will print GPS data
+#define PRINT_BINARY 1   //Will print binary message and suppress ASCII messages (above)
+
+//**********************************************************************
+//  End of user parameters
+//**********************************************************************
+
+#define SOFTWARE_VER "1.5"
 
 // ADC : Voltage reference 3.3v / 10bits(1024 steps) => 3.22mV/ADC step
 // ADXL335 Sensitivity(from datasheet) => 330mV/g, 3.22mV/ADC step => 330/3.22 = 102.48
@@ -35,22 +64,8 @@
 #define Kp_YAW .5
 #define Ki_YAW 0.00005
 
-/* Enable Air Start uses Remove Before Fly flag - connection to pin 6 on ArduPilot */
-#define ENABLE_AIR_START 1  //  1 if using Remove Before Fly, 0 if not
-
-/*Min Speed Filter for Yaw drift Correction*/
-#define SPEEDFILT 2 // >1 use min speed filter for yaw drift cancellation, 0=do not use speed filter
-
-/*For debugging propurses*/
-#define PRINT_DEBUG 1   //Will print Debug messages
-//OUTPUTMODE=1 will print the corrected data, 0 will print uncorrected data of the gyros (with drift), 2 will print accelerometer only data
-#define OUTPUTMODE 1
-
-#define PRINT_DCM 0     //Will print the whole direction cosine matrix
-#define PRINT_ANALOGS 0 //Will print the analog raw data
-#define PRINT_EULER 1   //Will print the Euler angles Roll, Pitch and Yaw
-#define PRINT_GPS 0     //Will print GPS data
-#define PRINT_BINARY 0   //Will print binary message and suppress ASCII messages (above)
+/*UBLOX Maximum payload length*/
+#define UBX_MAXPAYLOAD 40
 
 #define ADC_WARM_CYCLES 75
 
@@ -151,7 +166,7 @@ byte UBX_id=0;
 byte UBX_payload_length_hi=0;
 byte UBX_payload_length_lo=0;
 byte UBX_payload_counter=0;
-byte UBX_buffer[40];
+byte UBX_buffer[UBX_MAXPAYLOAD];
 byte UBX_ck_a=0;
 byte UBX_ck_b=0;
 
@@ -170,15 +185,16 @@ void setup()
   pinMode(5,OUTPUT); //Red LED
   pinMode(6,OUTPUT); // Blue LED
   pinMode(7,OUTPUT); // Yellow LED
-  pinMode(8,INPUT);  // Remove Before Fly flag (pin 6 on ArduPilot)
-  digitalWrite(8,HIGH);  // The Remove Before Fly flag will pull pin 8 low if connected.
+  pinMode(RBF_PIN,INPUT);  // Remove Before Fly flag (pin 6 on ArduPilot)
+  digitalWrite(RBF_PIN,HIGH);  // The Remove Before Fly flag will pull pin low if connected.
 
   
   Analog_Reference(EXTERNAL);//Using external analog reference
   Analog_Init();
-  Serial.println("ArduIMU:");
+  Serial.print("ArduIMU: v");
+  Serial.println(SOFTWARE_VER);
   
-  if(ENABLE_AIR_START && digitalRead(8) == HIGH){
+  if(ENABLE_AIR_START && digitalRead(RBF_PIN) == HIGH){
       Serial.println("***Air Start");
       startup_air();
   }else{

@@ -31,7 +31,7 @@ float read_adc(int select)
   float temp;
   if (SENSOR_SIGN[select]<0){
     temp = (AN_OFFSET[select]-AN[select]);
-#ifdef PRINT_DEBUG
+#if PRINT_DEBUG != 0
     if (abs(temp)>900) {
     Serial.print("!!!ADC:1,VAL:");
     Serial.print (temp);
@@ -43,7 +43,7 @@ float read_adc(int select)
     return constrain(temp,-900,900);             //Throw out nonsensical values
   } else {
     temp = (AN[select]-AN_OFFSET[select]); 
-#ifdef PRINT_DEBUG
+#if PRINT_DEBUG != 0
     if (abs(temp)>900) {
     Serial.print("!!!ADC:2,VAL:");
     Serial.print (temp);

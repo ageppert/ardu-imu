@@ -21,7 +21,7 @@ void Normalize(void)
     renorm= .5 * (3-renorm);                                                 //eq.21
   } else if (renorm < 100.0f && renorm > 0.01f) {
     renorm= 1. / sqrt(renorm);  
-	#ifdef PRINT_DEBUG
+	#if PRINT_DEBUG != 0
     Serial.print("!!!SQT:1,RNM:");
     Serial.print (renorm);
     Serial.print (",ERR:");
@@ -32,7 +32,7 @@ void Normalize(void)
 #endif
   } else {
     problem = TRUE;
-	#ifdef PRINT_DEBUG
+	#if PRINT_DEBUG != 0
     Serial.print("!!!PRB:1,RNM:");
     Serial.print (renorm);
     Serial.print (",ERR:");
@@ -49,7 +49,7 @@ void Normalize(void)
     renorm= .5 * (3-renorm);                                                 //eq.21
   } else if (renorm < 100.0f && renorm > 0.01f) {
     renorm= 1. / sqrt(renorm);    
-#ifdef PRINT_DEBUG
+#if PRINT_DEBUG != 0
     Serial.print("!!!SQT:2,RNM:");
     Serial.print (renorm);
     Serial.print (",ERR:");
@@ -60,7 +60,7 @@ void Normalize(void)
 #endif
   } else {
     problem = TRUE;
-#ifdef PRINT_DEBUG
+#if PRINT_DEBUG != 0
     Serial.print("!!!PRB:2,RNM:");
     Serial.print (renorm);
     Serial.print (",ERR:");
@@ -77,7 +77,7 @@ void Normalize(void)
     renorm= .5 * (3-renorm);                                                 //eq.21
   } else if (renorm < 100.0f && renorm > 0.01f) {
     renorm= 1. / sqrt(renorm);  
-#ifdef PRINT_DEBUG
+#if PRINT_DEBUG != 0
     Serial.print("!!!SQT:3,RNM:");
     Serial.print (renorm);
     Serial.print (",ERR:");
@@ -88,7 +88,7 @@ void Normalize(void)
 #endif
   } else {
     problem = TRUE;
-#ifdef PRINT_DEBUG
+#if PRINT_DEBUG != 0
     Serial.print("!!!PRB:3,RNM:");
     Serial.print (renorm);
     Serial.print (",TOW:");
@@ -158,7 +158,7 @@ void Drift_correction(void)
   Integrator_magnitude = sqrt(Vector_Dot_Product(Omega_I,Omega_I));
   if (Integrator_magnitude > ToRad(300)) {
     Vector_Scale(Omega_I,Omega_I,0.5f*ToRad(300)/Integrator_magnitude);
-#ifdef PRINT_DEBUG
+#if PRINT_DEBUG != 0
     Serial.print("!!!INT:1,MAG:");
     Serial.print (ToDeg(Integrator_magnitude));
 
