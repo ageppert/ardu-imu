@@ -29,11 +29,11 @@
 //OUTPUTMODE=1 will print the corrected data, 0 will print uncorrected data of the gyros (with drift), 2 will print accelerometer only data
 #define OUTPUTMODE 1
 
-#define PRINT_DCM 0     //Will print the whole direction cosine matrix
-#define PRINT_ANALOGS 0 //Will print the analog raw data
-#define PRINT_EULER 0   //Will print the Euler angles Roll, Pitch and Yaw
-#define PRINT_GPS 0     //Will print GPS data
-#define PRINT_BINARY 1   //Will print binary message and suppress ASCII messages (above)
+#define PRINT_DCM 1     //Will print the whole direction cosine matrix
+#define PRINT_ANALOGS 1 //Will print the analog raw data
+#define PRINT_EULER 1   //Will print the Euler angles Roll, Pitch and Yaw
+#define PRINT_GPS 1     //Will print GPS data
+#define PRINT_BINARY 0   //Will print binary message and suppress ASCII messages (above)
 
 //**********************************************************************
 //  End of user parameters
@@ -74,11 +74,11 @@
 
 /*Select hardware version - comment out one pair below*/
 
-  uint8_t sensors[6] = {0,2,1,3,5,4};   // Use these two lines for Hardware v1 (w/ daughterboards)
-  int SENSOR_SIGN[]= {1,-1,1,-1,1,-1};  //Sensor: GYROX, GYROY, GYROZ, ACCELX, ACCELY, ACCELZ
+  //uint8_t sensors[6] = {0,2,1,3,5,4};   // Use these two lines for Hardware v1 (w/ daughterboards)
+  //int SENSOR_SIGN[]= {1,-1,1,-1,1,-1};  //Sensor: GYROX, GYROY, GYROZ, ACCELX, ACCELY, ACCELZ
 
-//  uint8_t sensors[6] = {6,7,3,0,1,2};  // For Hardware v2 flat
-//  int SENSOR_SIGN[] = {1,-1,-1,1,-1,1};
+  uint8_t sensors[6] = {6,7,3,0,1,2};  // For Hardware v2 flat
+  int SENSOR_SIGN[] = {1,-1,-1,1,-1,1};
 
 float G_Dt=0.02;    // Integration time (DCM algorithm)
 
