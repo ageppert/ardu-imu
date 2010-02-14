@@ -8,7 +8,9 @@
  //NAV-POSLLH Geodetic Position Solution, PAGE 66 of datasheet
  //NAV-VELNED Velocity Solution in NED, PAGE 71 of datasheet
  //NAV-STATUS Receiver Navigation Status, PAGE 67 of datasheet
-
+ //NAV-SOL Navigation Solution Information, PAGE 72 of datasheet
+ 
+ 
  // Baud Rate:38400
 
 /* 
@@ -133,39 +135,58 @@ void parse_ubx_gps()
   {
     switch(UBX_id)//Checking the UBX ID
     {
-    case 0x02: //ID NAV-POSLLH 
-      j=0;
-      iTOW = join_4_bytes(&UBX_buffer[j]);
-      j+=4;
-      lon = (float)join_4_bytes(&UBX_buffer[j])/10000000.0;
-      j+=4;
-      lat = (float)join_4_bytes(&UBX_buffer[j])/10000000.0;
-      j+=4;
-      alt = (float)join_4_bytes(&UBX_buffer[j])/1000.0;
-      j+=4;
-      alt_MSL = (float)join_4_bytes(&UBX_buffer[j])/1000.0;
-      j+=4;
-      /*
-      hacc = (float)join_4_bytes(&UBX_buffer[j])/1000.0;
-      j+=4;
-      vacc = (float)join_4_bytes(&UBX_buffer[j])/1000.0;
-      j+=4;
-      */
-      data_update_event|=0x01;
+      case 0x02: //ID NAV-POSLLH 
+        j=0;
+        iTOW = join_4_bytes(&UBX_buffer[j]);
+        j+=4;
+        lon = (float)join_4_bytes(&UBX_buffer[j])/10000000.0;
+        j+=4;
+        lat = (float)join_4_bytes(&UBX_buffer[j])/10000000.0;
+        j+=4;
+        alt = (float)join_4_bytes(&UBX_buffer[j])/1000.0;
+        j+=4;
+        alt_MSL = (float)join_4_bytes(&UBX_buffer[j])/1000.0;
+        j+=4;
+        /*
+        hacc = (float)join_4_bytes(&UBX_buffer[j])/1000.0;
+        j+=4;
+        vacc = (float)join_4_bytes(&UBX_buffer[j])/1000.0;
+        j+=4;
+        */
+        data_update_event|=0x01;
       break;
     case 0x03://ID NAV-STATUS 
-     if((UBX_buffer[4] >= 0x03)&&(UBX_buffer[5]&0x01))
-      {
-        gpsFix=0; //valid position
-        gpsFixnew=1;  //new information available flag for binary message
-        digitalWrite(6,HIGH);  //Turn LED when gps is fixed. 
-      }
-      else
-      {
-        gpsFix=1; //invalid position
-        digitalWrite(6,LOW);
-      }
+       if((UBX_buffer[4] >= 0x03)&&(UBX_buffer[5]&0x01))
+        {
+          gpsFix=0; //valid position
+          gpsFixnew=1;  //new information available flag for binary message
+          digitalWrite(6,HIGH);  //Turn LED when gps is fixed. 
+        }
+        else
+        {
+          gpsFix=1; //invalid position
+          digitalWrite(6,LOW);
+        }
       break;
+      
+    case 0x06://ID NAV-SOL
+               if((UBX_buffer[10] >= 0x03)&&(UBX_buffer[11]&0x01))
+        {
+          gpsFix=0; //valid position
+          gpsFixnew=1;  //new information available flag for binary message
+          digitalWrite(6,HIGH);  //Turn LED when gps is fixed. 
+        }
+        else
+        {
+          gpsFix=1; //invalid position
+          digitalWrite(6,LOW);
+        }
+        
+        ecefVZ=(float)join_4_bytes(&UBX_buffer[36])/100; //Vertical Speed
+        
+        numSV=UBX_buffer[47]; //Number of sats... 
+    
+    break;
 
     case 0x12:// ID NAV-VELNED 
       j=16;

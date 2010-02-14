@@ -68,6 +68,11 @@ void printdata(void)//ToDeg(x)
       Serial.print(ground_speed);
       Serial.print(",FIX:");
       Serial.print((int)gpsFix);
+      Serial.print(",EVZ:"); //Vertical Speed
+      Serial.print(ecefVZ);
+      Serial.print(",SAT:"); 
+      Serial.print((int)numSV);
+      
       Serial.print (",");
   }
 #endif

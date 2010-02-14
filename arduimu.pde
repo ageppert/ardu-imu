@@ -65,7 +65,7 @@
 #define Ki_YAW 0.00005
 
 /*UBLOX Maximum payload length*/
-#define UBX_MAXPAYLOAD 40
+#define UBX_MAXPAYLOAD 56
 
 #define ADC_WARM_CYCLES 75
 
@@ -155,6 +155,8 @@ long alt=0;  //Height above Ellipsoid
 float speed_3d=0; //Speed (3-D)
 float ground_speed=0;// This is the velocity your "plane" is traveling in meters for second, 1Meters/Second= 3.6Km/H = 1.944 knots
 float ground_course=90;//This is the runaway direction of you "plane" in degrees
+byte numSV=0; //Number of Sats used. 
+float ecefVZ=0; //Vertical Speed in m/s
 char data_update_event=0; 
 
 // GPS UBLOX
