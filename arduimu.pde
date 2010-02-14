@@ -18,7 +18,7 @@
 
 // Enable Air Start uses Remove Before Fly flag - connection to pin 6 on ArduPilot 
 #define ENABLE_AIR_START 1  //  1 if using Remove Before Fly, 0 if not
-#define RBF_PIN 10    //  Pin number used for Remove Before Fly (recommend 10 on v1 and 8 on v2 hardware)
+#define RBF_PIN 8    //  Pin number used for Remove Before Fly (recommend 10 on v1 and 8 on v2 hardware)
 
 /*Min Speed Filter for Yaw drift Correction*/
 #define SPEEDFILT 2 // >1 use min speed filter for yaw drift cancellation, 0=do not use speed filter

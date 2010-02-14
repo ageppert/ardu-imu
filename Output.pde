@@ -9,17 +9,17 @@ void printdata(void)//ToDeg(x)
   Serial.print(",");
       #if PRINT_ANALOGS==1
       Serial.print("AN0:");
-      Serial.print(read_adc(0)*-SENSOR_SIGN[0]); //Reversing the sign. 
+      Serial.print(read_adc(0)); //Reversing the sign. 
       Serial.print(",AN1:");
-      Serial.print(read_adc(1)*-SENSOR_SIGN[1]);
+      Serial.print(read_adc(1));
       Serial.print(",AN2:");
-      Serial.print(read_adc(2)*-SENSOR_SIGN[2]);  
+      Serial.print(read_adc(2));  
       Serial.print(",AN3:");
-      Serial.print(read_adc(3)*-SENSOR_SIGN[3]);
+      Serial.print(read_adc(3));
       Serial.print (",AN4:");
-      Serial.print(read_adc(4)*-SENSOR_SIGN[4]);
+      Serial.print(read_adc(4));
       Serial.print (",AN5:");
-      Serial.print(read_adc(5)*-SENSOR_SIGN[5]);
+      Serial.print(read_adc(5));
       Serial.print (",");
       #endif
       #if PRINT_DCM == 1
