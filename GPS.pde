@@ -105,7 +105,7 @@ void decode_gps(void)
         UBX_ck_b=data;   // Second checksum byte
        
 	  // We end the GPS read...
-        if((ck_a=UBX_ck_a)&&(ck_b=UBX_ck_a))   // Verify the received checksum with the generated checksum.. 
+        if((ck_a==UBX_ck_a)&&(ck_b==UBX_ck_a))   // Verify the received checksum with the generated checksum.. 
 	  	parse_ubx_gps();               // Parse new GPS packet...
 
 #if PRINT_DEBUG != 0
