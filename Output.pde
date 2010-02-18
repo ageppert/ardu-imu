@@ -1,5 +1,5 @@
 
-void printdata(void)//ToDeg(x)
+void printdata(void)
 {    
 
   #if PRINT_BINARY != 1  //Print either Ascii or binary messages
@@ -21,6 +21,12 @@ void printdata(void)//ToDeg(x)
       Serial.print (",AN5:");
       Serial.print(read_adc(5));
       Serial.print (",");
+      //Serial.print("MX:");
+      //Serial.print(magnetom_x);
+      //Serial.print (",MY:");
+      //Serial.print(magnetom_y);
+      //Serial.print (",MZ:");
+      //Serial.print(magnetom_z);
       #endif
       #if PRINT_DCM == 1
       Serial.print ("EX0:");
@@ -52,10 +58,10 @@ void printdata(void)//ToDeg(x)
       Serial.print(ToDeg(yaw));
       Serial.print (",");
       #endif
-       #if PRINT_GPS == 1
-  if(gpsFixnew==1)
-  {
-    gpsFixnew=0;
+      #if PRINT_GPS == 1
+      if(gpsFixnew==1)
+      {
+      gpsFixnew=0;
       Serial.print("LAT:");
       Serial.print((long)(lat*10000000));
       Serial.print(",LON:");
@@ -74,8 +80,8 @@ void printdata(void)//ToDeg(x)
       Serial.print((int)numSV);
       
       Serial.print (",");
-  }
-#endif
+      }
+      #endif
   Serial.print("TOW:");
   Serial.print(iTOW);
       

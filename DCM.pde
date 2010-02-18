@@ -116,6 +116,8 @@ void Normalize(void)
 void Drift_correction(void)
 {
   //Compensation the Roll, Pitch and Yaw drift. 
+  float mag_heading_x;
+  float mag_heading_y;
   static float Scaled_Omega_P[3];
   static float Scaled_Omega_I[3];
   float Accel_magnitude;
@@ -139,6 +141,19 @@ void Drift_correction(void)
   
   //*****YAW***************
   
+  #if USE_MAGNETOMETER==1 
+    // We make the gyro YAW drift correction based on compass magnetic heading
+    mag_heading_x = cos(MAG_Heading);
+    mag_heading_y = sin(MAG_Heading);
+    errorCourse=(DCM_Matrix[0][0]*mag_heading_y) - (DCM_Matrix[1][0]*mag_heading_x);  //Calculating YAW error
+    Vector_Scale(errorYaw,&DCM_Matrix[2][0],errorCourse); //Applys the yaw correction to the XYZ rotation of the aircraft, depeding the position.
+    
+    Vector_Scale(&Scaled_Omega_P[0],&errorYaw[0],Kp_YAW);
+    Vector_Add(Omega_P,Omega_P,Scaled_Omega_P);//Adding  Proportional.
+    
+    Vector_Scale(&Scaled_Omega_I[0],&errorYaw[0],Ki_YAW);
+    Vector_Add(Omega_I,Omega_I,Scaled_Omega_I);//adding integrator to the Omega_I   
+  #else  // Use GPS Ground course to correct yaw gyro drift
   if(ground_speed>=SPEEDFILT)
   {
     COGX = cos(ToRad(ground_course));
@@ -146,14 +161,13 @@ void Drift_correction(void)
     errorCourse=(DCM_Matrix[0][0]*COGY) - (DCM_Matrix[1][0]*COGX);  //Calculating YAW error
     Vector_Scale(errorYaw,&DCM_Matrix[2][0],errorCourse); //Applys the yaw correction to the XYZ rotation of the aircraft, depeding the position.
   
-    Vector_Scale(&Scaled_Omega_P[0],&errorYaw[0],Kp_YAW);//.01proportional of YAW.
+    Vector_Scale(&Scaled_Omega_P[0],&errorYaw[0],Kp_YAW);
     Vector_Add(Omega_P,Omega_P,Scaled_Omega_P);//Adding  Proportional.
   
-    Vector_Scale(&Scaled_Omega_I[0],&errorYaw[0],Ki_YAW);//.00001Integrator
+    Vector_Scale(&Scaled_Omega_I[0],&errorYaw[0],Ki_YAW);
     Vector_Add(Omega_I,Omega_I,Scaled_Omega_I);//adding integrator to the Omega_I   
-  
   }
-  
+  #endif
   //  Here we will place a limit on the integrator so that the integrator cannot ever exceed half the saturation limit of the gyros
   Integrator_magnitude = sqrt(Vector_Dot_Product(Omega_I,Omega_I));
   if (Integrator_magnitude > ToRad(300)) {

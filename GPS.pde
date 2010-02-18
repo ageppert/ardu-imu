@@ -93,9 +93,9 @@ void decode_gps(void)
           UBX_buffer[UBX_payload_counter] = data;
           checksum(data);
           UBX_payload_counter++;
+          if (UBX_payload_counter==UBX_payload_length_hi)
+            UBX_step++; 
         }
-        else
-          UBX_step++; 
         break;
       case 7:
         UBX_ck_a=data;   // First checksum byte
@@ -105,7 +105,7 @@ void decode_gps(void)
         UBX_ck_b=data;   // Second checksum byte
        
 	  // We end the GPS read...
-        if((ck_a==UBX_ck_a)&&(ck_b==UBX_ck_a))   // Verify the received checksum with the generated checksum.. 
+        if((ck_a==UBX_ck_a)&&(ck_b==UBX_ck_b))   // Verify the received checksum with the generated checksum.. 
 	  	parse_ubx_gps();               // Parse new GPS packet...
 
 #if PRINT_DEBUG != 0
@@ -170,7 +170,7 @@ void parse_ubx_gps()
       break;
       
     case 0x06://ID NAV-SOL
-               if((UBX_buffer[10] >= 0x03)&&(UBX_buffer[11]&0x01))
+       if((UBX_buffer[10] >= 0x03)&&(UBX_buffer[11]&0x01))
         {
           gpsFix=0; //valid position
           gpsFixnew=1;  //new information available flag for binary message
@@ -184,8 +184,7 @@ void parse_ubx_gps()
         
         ecefVZ=(float)join_4_bytes(&UBX_buffer[36])/100; //Vertical Speed
         
-        numSV=UBX_buffer[47]; //Number of sats... 
-    
+        numSV=UBX_buffer[47]; //Number of sats...     
     break;
 
     case 0x12:// ID NAV-VELNED 

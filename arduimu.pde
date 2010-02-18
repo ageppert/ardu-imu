@@ -8,6 +8,7 @@
 // Positive yaw : clockwise
 
 #include <avr/eeprom.h>
+#include <Wire.h>
 
 //**********************************************************************
 //  This section contains user parameters
@@ -17,7 +18,7 @@
 // Select the correct statements at line 76
 
 // Enable Air Start uses Remove Before Fly flag - connection to pin 6 on ArduPilot 
-#define ENABLE_AIR_START 1  //  1 if using Remove Before Fly, 0 if not
+#define ENABLE_AIR_START 0  //  1 if using Remove Before Fly, 0 if not
 #define RBF_PIN 8    //  Pin number used for Remove Before Fly (recommend 10 on v1 and 8 on v2 hardware)
 
 /*Min Speed Filter for Yaw drift Correction*/
@@ -29,11 +30,14 @@
 //OUTPUTMODE=1 will print the corrected data, 0 will print uncorrected data of the gyros (with drift), 2 will print accelerometer only data
 #define OUTPUTMODE 1
 
-#define PRINT_DCM 1     //Will print the whole direction cosine matrix
+#define PRINT_DCM 0     //Will print the whole direction cosine matrix
 #define PRINT_ANALOGS 1 //Will print the analog raw data
 #define PRINT_EULER 1   //Will print the Euler angles Roll, Pitch and Yaw
 #define PRINT_GPS 1     //Will print GPS data
 #define PRINT_BINARY 0   //Will print binary message and suppress ASCII messages (above)
+
+/* Support for optional magnetometer (1 enabled, 0 dissabled) */
+#define USE_MAGNETOMETER 0 // use 1 if you want to make yaw gyro drift corrections using the optional magnetometer                   
 
 //**********************************************************************
 //  End of user parameters
@@ -61,7 +65,7 @@
 
 #define Kp_ROLLPITCH 0.015
 #define Ki_ROLLPITCH 0.000010
-#define Kp_YAW .5
+#define Kp_YAW 1.2
 #define Ki_YAW 0.00005
 
 /*UBLOX Maximum payload length*/
@@ -78,7 +82,7 @@
   //int SENSOR_SIGN[]= {1,-1,1,-1,1,-1};  //Sensor: GYROX, GYROY, GYROZ, ACCELX, ACCELY, ACCELZ
 
   uint8_t sensors[6] = {6,7,3,0,1,2};  // For Hardware v2 flat
-  int SENSOR_SIGN[] = {1,-1,-1,1,-1,1};
+  int SENSOR_SIGN[] = {1,-1,-1,1,-1,1,-1,-1,-1};
 
 float G_Dt=0.02;    // Integration time (DCM algorithm)
 
@@ -95,6 +99,12 @@ float Omega_Vector[3]= {0,0,0}; //Corrected Gyro_Vector data
 float Omega_P[3]= {0,0,0};//Omega Proportional correction
 float Omega_I[3]= {0,0,0};//Omega Integrator
 float Omega[3]= {0,0,0};
+
+//Magnetometer variables
+int magnetom_x;
+int magnetom_y;
+int magnetom_z;
+float MAG_Heading;
 
 // Euler angles
 float roll;
@@ -193,6 +203,14 @@ void setup()
   
   Analog_Reference(EXTERNAL);//Using external analog reference
   Analog_Init();
+  
+  #if USE_MAGNETOMETER==1
+  I2C_Init();
+  delay(100);
+  // Magnetometer initialization
+  Compass_Init();
+  #endif
+  
   Serial.print("ArduIMU: v");
   Serial.println(SOFTWARE_VER);
   
@@ -219,6 +237,7 @@ void loop() //Main Loop
  
   if((timeNow-timer)>=20)  // Main loop runs at 50Hz
   {
+    counter++;
     timer_old = timer;
     timer = timeNow;
     G_Dt = (timer-timer_old)/1000.0;    // Real time of loop run. We use this on the DCM algorithm (gyro integration time)
@@ -229,6 +248,14 @@ void loop() //Main Loop
     
     // *** DCM algorithm
     Read_adc_raw();
+    #if USE_MAGNETOMETER==1
+    if (counter > 5)  // Read compass data at 10Hz... (5 loop runs)
+      {
+      counter=0;
+      Read_Compass();    // Read I2C magnetometer
+      Compass_Heading(); // Calculate magnetic heading  
+      }
+    #endif
     Matrix_update(); 
     Normalize();
     Drift_correction();
