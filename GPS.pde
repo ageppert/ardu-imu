@@ -33,8 +33,7 @@
 // We can call this function on the main loop (50Hz loop)
 // If we get a complete packet this function calls parse_ubx_gps() to parse and update the GPS info.
 void decode_gps(void)
-{
-  static unsigned long GPS_timer=0;
+{ 
   byte data;
   int numc;
   
@@ -47,7 +46,7 @@ void decode_gps(void)
       {
       case 0:  
         if(data==0xB5)  // UBX sync char 1
-          UBX_step++;   //OH first data packet is correct, so jump to the next step
+          UBX_step++;   //first data packet is correct, so jump to the next step
         break; 
       case 1:  
         if(data==0x62)  // UBX sync char 2
@@ -88,15 +87,16 @@ void decode_gps(void)
         UBX_step++;
         break;
       case 6:         // Payload data read...
-	if (UBX_payload_counter < UBX_payload_length_hi)  // We stay in this state until we reach the payload_length
-        {
-          UBX_buffer[UBX_payload_counter] = data;
-          checksum(data);
-          UBX_payload_counter++;
-          if (UBX_payload_counter==UBX_payload_length_hi)
-            UBX_step++; 
-        }
-        break;
+					// We need to process the data byte before we check the number of bytes so far
+					UBX_buffer[UBX_payload_counter] = data;
+					checksum(data);
+					UBX_payload_counter++;
+					if (UBX_payload_counter < UBX_payload_length_hi) {
+						// We stay in this state until we reach the payload_length
+					} else {
+						UBX_step++; // payload_length reached - next byte is checksum
+					}
+					break;
       case 7:
         UBX_ck_a=data;   // First checksum byte
         UBX_step++;
@@ -121,6 +121,10 @@ void decode_gps(void)
         break;
 	}
     }    // End for...
+  if(DIYmillis() - GPS_timer > 2000){
+      digitalWrite(6, LOW);  //If we don't receive any byte in two seconds turn off gps fix LED... 
+      gpsFix=1; 
+  }
 }
 
 /****************************************************************
@@ -153,7 +157,6 @@ void parse_ubx_gps()
         vacc = (float)join_4_bytes(&UBX_buffer[j])/1000.0;
         j+=4;
         */
-        data_update_event|=0x01;
       break;
     case 0x03://ID NAV-STATUS 
        if((UBX_buffer[4] >= 0x03)&&(UBX_buffer[5]&0x01))
@@ -161,6 +164,7 @@ void parse_ubx_gps()
           gpsFix=0; //valid position
           gpsFixnew=1;  //new information available flag for binary message
           digitalWrite(6,HIGH);  //Turn LED when gps is fixed. 
+          GPS_timer=DIYmillis(); //Restarting timer...
         }
         else
         {
@@ -175,6 +179,7 @@ void parse_ubx_gps()
           gpsFix=0; //valid position
           gpsFixnew=1;  //new information available flag for binary message
           digitalWrite(6,HIGH);  //Turn LED when gps is fixed. 
+          GPS_timer=DIYmillis(); //Restarting timer...
         }
         else
         {
@@ -201,7 +206,6 @@ void parse_ubx_gps()
       headacc = join_4_bytes(&UBX_buffer[j]) // Heading accuracy
       j+=4;
       */
-      data_update_event|=0x02; //Update the flag to indicate the new data has arrived.
       break; 
       }
     }   
