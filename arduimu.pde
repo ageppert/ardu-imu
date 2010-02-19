@@ -15,7 +15,7 @@
 //**********************************************************************
 
 // *** NOTE!   Hardware version - Can be used for v1 (daughterboards) or v2 (flat)
-// Select the correct statements at line 76
+// Select the correct statements at line 84
 
 // Enable Air Start uses Remove Before Fly flag - connection to pin 6 on ArduPilot 
 #define ENABLE_AIR_START 0  //  1 if using Remove Before Fly, 0 if not
@@ -25,7 +25,7 @@
 #define SPEEDFILT 2 // >1 use min speed filter for yaw drift cancellation, 0=do not use speed filter
 
 /*For debugging propurses*/
-#define PRINT_DEBUG 0   //Will print Debug messages
+#define PRINT_DEBUG 1   //Will print Debug messages
 
 //OUTPUTMODE=1 will print the corrected data, 0 will print uncorrected data of the gyros (with drift), 2 will print accelerometer only data
 #define OUTPUTMODE 1
@@ -78,8 +78,8 @@
 
 /*Select hardware version - comment out one pair below*/
 
-  //uint8_t sensors[6] = {0,2,1,3,5,4};   // Use these two lines for Hardware v1 (w/ daughterboards)
-  //int SENSOR_SIGN[]= {1,-1,1,-1,1,-1};  //Sensor: GYROX, GYROY, GYROZ, ACCELX, ACCELY, ACCELZ
+//  uint8_t sensors[6] = {0,2,1,3,5,4};   // Use these two lines for Hardware v1 (w/ daughterboards)
+//  int SENSOR_SIGN[]= {1,-1,1,-1,1,-1,-1,-1,-1};  //Sensor: GYROX, GYROY, GYROZ, ACCELX, ACCELY, ACCELZ
 
   uint8_t sensors[6] = {6,7,3,0,1,2};  // For Hardware v2 flat
   int SENSOR_SIGN[] = {1,-1,-1,1,-1,1,-1,-1,-1};
@@ -167,7 +167,7 @@ float ground_speed=0;// This is the velocity your "plane" is traveling in meters
 float ground_course=90;//This is the runaway direction of you "plane" in degrees
 byte numSV=0; //Number of Sats used. 
 float ecefVZ=0; //Vertical Speed in m/s
-char data_update_event=0; 
+unsigned long GPS_timer=0;
 
 // GPS UBLOX
 byte ck_a=0;    // Packet checksum
