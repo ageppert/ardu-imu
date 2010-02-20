@@ -22,7 +22,7 @@ void Normalize(void)
   } else if (renorm < 100.0f && renorm > 0.01f) {
     renorm= 1. / sqrt(renorm);  
 	#if PRINT_DEBUG != 0
-    Serial.print("!!!SQT:1,RNM:");
+    Serial.print("???SQT:1,RNM:");
     Serial.print (renorm);
     Serial.print (",ERR:");
     Serial.print (error);
@@ -33,7 +33,7 @@ void Normalize(void)
   } else {
     problem = TRUE;
 	#if PRINT_DEBUG != 0
-    Serial.print("!!!PRB:1,RNM:");
+    Serial.print("???PRB:1,RNM:");
     Serial.print (renorm);
     Serial.print (",ERR:");
     Serial.print (error);
@@ -50,7 +50,7 @@ void Normalize(void)
   } else if (renorm < 100.0f && renorm > 0.01f) {
     renorm= 1. / sqrt(renorm);    
 #if PRINT_DEBUG != 0
-    Serial.print("!!!SQT:2,RNM:");
+    Serial.print("???SQT:2,RNM:");
     Serial.print (renorm);
     Serial.print (",ERR:");
     Serial.print (error);
@@ -61,7 +61,7 @@ void Normalize(void)
   } else {
     problem = TRUE;
 #if PRINT_DEBUG != 0
-    Serial.print("!!!PRB:2,RNM:");
+    Serial.print("???PRB:2,RNM:");
     Serial.print (renorm);
     Serial.print (",ERR:");
     Serial.print (error);
@@ -78,7 +78,7 @@ void Normalize(void)
   } else if (renorm < 100.0f && renorm > 0.01f) {
     renorm= 1. / sqrt(renorm);  
 #if PRINT_DEBUG != 0
-    Serial.print("!!!SQT:3,RNM:");
+    Serial.print("???SQT:3,RNM:");
     Serial.print (renorm);
     Serial.print (",ERR:");
     Serial.print (error);
@@ -89,7 +89,7 @@ void Normalize(void)
   } else {
     problem = TRUE;
 #if PRINT_DEBUG != 0
-    Serial.print("!!!PRB:3,RNM:");
+    Serial.print("???PRB:3,RNM:");
     Serial.print (renorm);
     Serial.print (",TOW:");
     Serial.print (iTOW);  

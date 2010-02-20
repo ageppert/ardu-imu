@@ -27,7 +27,7 @@
 #define SPEEDFILT 2 // >1 use min speed filter for yaw drift cancellation, 0=do not use speed filter
 
 /*For debugging propurses*/
-#define PRINT_DEBUG 0   //Will print Debug messages
+#define PRINT_DEBUG 1   //Will print Debug messages
 
 //OUTPUTMODE=1 will print the corrected data, 0 will print uncorrected data of the gyros (with drift), 2 will print accelerometer only data
 #define OUTPUTMODE 1
@@ -211,8 +211,23 @@ void setup()
   Analog_Reference(EXTERNAL);//Using external analog reference
   Analog_Init();
   
+  debug_print("Welcome...");
+  
+  #if BOARD_VERSION == 1
+  debug_print("You are using Hardware Version 1...");
+  #endif 
+ 
+  #if BOARD_VERSION == 2
+  debug_print("You are using Hardware Version 2...");
+  #endif 
+  
+  //Serial.print("ArduIMU: v");
+  //Serial.println(SOFTWARE_VER);
+  debug_handler(0);//Printing version
+  
   #if BOARD_VERSION != 1
     #if USE_MAGNETOMETER==1
+      debug_handler(3);
       I2C_Init();
       delay(100);
       // Magnetometer initialization
@@ -220,14 +235,15 @@ void setup()
     #endif
   #endif
   
-  Serial.print("ArduIMU: v");
-  Serial.println(SOFTWARE_VER);
+
   
   if(ENABLE_AIR_START && digitalRead(RBF_PIN) == HIGH){
-      Serial.println("***Air Start");
+      debug_handler(1);
+      //Serial.println("***Air Start");
       startup_air();
   }else{
-      Serial.println("***Ground Start");
+      //Serial.println("***Ground Start");
+      debug_handler(2);
       startup_ground();
   }
  
@@ -402,6 +418,58 @@ void startup_air(void)
   }
       Serial.println("***Air Start complete");
 }    
+
+
+void debug_print(char string[])
+{
+  #if PRINT_DEBUG != 0 
+  Serial.print("???");
+  Serial.print(string);
+  Serial.println("***");
+  #endif
+}
+
+void debug_handler(byte message)
+{
+  #if PRINT_DEBUG != 0 
+  
+  static unsigned long BAD_Checksum=0;
+  
+   switch(message) 
+   {
+      case 0:
+      Serial.print("???Software Version ");
+      Serial.print(SOFTWARE_VER);
+      Serial.println("***");
+      break;
+      
+      case 1:
+      Serial.println("???Air Start!***");
+      break;
+      
+      case 2:
+      Serial.println("???Ground Start!***");
+      break;      
+      
+      case 3:
+      Serial.println("???Enabling Magneto...***");
+      break;         
+     
+      case 10:
+      BAD_Checksum++;
+      Serial.print("???GPS Bad Checksum: "); 
+      Serial.print(BAD_Checksum);
+      Serial.println("...***");
+      break;
+      
+      default:
+      Serial.println("???Invalid debug ID...***");
+      break;
+   
+   }
+  #endif
+  
+}
     
 /*
 EEPROM memory map

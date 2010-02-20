@@ -71,7 +71,7 @@ void decode_gps(void)
         if (UBX_payload_length_hi>UBX_MAXPAYLOAD)
         {
 #if PRINT_DEBUG != 0
-          Serial.print("!!!GPS:1,BAD Payload length:");   
+          Serial.print("???GPS:1,BAD Payload length:");   
           Serial.print(UBX_payload_length_hi,DEC);
           Serial.println("***");    
 #endif
@@ -88,14 +88,28 @@ void decode_gps(void)
         break;
       case 6:         // Payload data read...
 					// We need to process the data byte before we check the number of bytes so far
-					UBX_buffer[UBX_payload_counter] = data;
+					/*UBX_buffer[UBX_payload_counter] = data;
 					checksum(data);
 					UBX_payload_counter++;
+                                         
 					if (UBX_payload_counter < UBX_payload_length_hi) {
 						// We stay in this state until we reach the payload_length
 					} else {
 						UBX_step++; // payload_length reached - next byte is checksum
-					}
+					}*/
+                                        
+                                        if (UBX_payload_counter < UBX_payload_length_hi) 
+                                        {
+                                          UBX_buffer[UBX_payload_counter] = data;
+                                          checksum(data);
+                                          UBX_payload_counter++;
+                                          
+                                        if (UBX_payload_counter==UBX_payload_length_hi)
+                                        UBX_step++;
+                                        
+                                        }
+                                        
+                                        
 					break;
       case 7:
         UBX_ck_a=data;   // First checksum byte
@@ -108,10 +122,23 @@ void decode_gps(void)
         if((ck_a==UBX_ck_a)&&(ck_b==UBX_ck_b))   // Verify the received checksum with the generated checksum.. 
 	  	parse_ubx_gps();               // Parse new GPS packet...
 
-#if PRINT_DEBUG != 0
         else
-            Serial.print("!!!GPS:1,BAD Checksum:1***");    
-#endif
+        {
+            debug_handler(10);    
+            Serial.print("???");
+            Serial.print((int)UBX_ck_a);
+            Serial.print("-");
+            Serial.print((int)ck_a);
+            Serial.println("***");
+            
+            Serial.print("???");
+            Serial.print((int)UBX_ck_b);
+            Serial.print("-");
+            Serial.print((int)ck_b);
+            Serial.println("***");
+            
+        }
+
         // Variable initialization
         UBX_step=0;
         UBX_payload_counter=0;
@@ -122,7 +149,8 @@ void decode_gps(void)
 	}
     }    // End for...
   if(DIYmillis() - GPS_timer > 2000){
-      digitalWrite(6, LOW);  //If we don't receive any byte in two seconds turn off gps fix LED... 
+      digitalWrite(6, LOW);  //If we don't receive any byte in two seconds turn off gps fix LED...
+      debug_print("Yeah, your GPS is disconnected"); 
       gpsFix=1; 
   }
 }
