@@ -21,12 +21,7 @@ void printdata(void)
       Serial.print (",AN5:");
       Serial.print(read_adc(5));
       Serial.print (",");
-      //Serial.print("MX:");
-      //Serial.print(magnetom_x);
-      //Serial.print (",MY:");
-      //Serial.print(magnetom_y);
-      //Serial.print (",MZ:");
-      //Serial.print(magnetom_z);
+
       #endif
       #if PRINT_DCM == 1
       Serial.print ("EX0:");
@@ -58,6 +53,20 @@ void printdata(void)
       Serial.print(ToDeg(yaw));
       Serial.print (",");
       #endif
+      
+      #if USE_MAGNETOMETER == 1
+      Serial.print("MGX:");
+      Serial.print(magnetom_x);
+      Serial.print (",MGY:");
+      Serial.print(magnetom_y);
+      Serial.print (",MGZ:");
+      Serial.print(magnetom_z);
+      Serial.print (",MGH:");
+      Serial.print(MAG_Heading);
+      Serial.print (",");
+      #endif
+      
+      
       #if PRINT_GPS == 1
       if(gpsFixnew==1)
       {

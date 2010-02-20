@@ -1,5 +1,5 @@
 // Released under Creative Commons License 
-// Code by Jordi Munoz and William Premerlani, Supported by Chris Anderson and Nathan Sindle (SparkFun).
+// Code by Jordi Munoz and William Premerlani, Supported by Chris Anderson (Wired) and Nathan Sindle (SparkFun).
 // Version 1.0 for flat board updated by Doug Weibel and Jose Julio
 
 // Axis definition: X axis pointing forward, Y axis pointing to the right and Z axis pointing down.
@@ -17,15 +17,17 @@
 // *** NOTE!   Hardware version - Can be used for v1 (daughterboards) or v2 (flat)
 // Select the correct statements at line 84
 
+#define BOARD_VERSION 2 // 1 For V1 and 2 for V2
+
 // Enable Air Start uses Remove Before Fly flag - connection to pin 6 on ArduPilot 
-#define ENABLE_AIR_START 0  //  1 if using Remove Before Fly, 0 if not
+#define ENABLE_AIR_START 1  //  1 if using Remove Before Fly, 0 if not
 #define RBF_PIN 8    //  Pin number used for Remove Before Fly (recommend 10 on v1 and 8 on v2 hardware)
 
 /*Min Speed Filter for Yaw drift Correction*/
 #define SPEEDFILT 2 // >1 use min speed filter for yaw drift cancellation, 0=do not use speed filter
 
 /*For debugging propurses*/
-#define PRINT_DEBUG 1   //Will print Debug messages
+#define PRINT_DEBUG 0   //Will print Debug messages
 
 //OUTPUTMODE=1 will print the corrected data, 0 will print uncorrected data of the gyros (with drift), 2 will print accelerometer only data
 #define OUTPUTMODE 1
@@ -37,13 +39,13 @@
 #define PRINT_BINARY 0   //Will print binary message and suppress ASCII messages (above)
 
 /* Support for optional magnetometer (1 enabled, 0 dissabled) */
-#define USE_MAGNETOMETER 0 // use 1 if you want to make yaw gyro drift corrections using the optional magnetometer                   
+#define USE_MAGNETOMETER 1 // use 1 if you want to make yaw gyro drift corrections using the optional magnetometer                   
 
 //**********************************************************************
 //  End of user parameters
 //**********************************************************************
 
-#define SOFTWARE_VER "1.5"
+#define SOFTWARE_VER "1.6"
 
 // ADC : Voltage reference 3.3v / 10bits(1024 steps) => 3.22mV/ADC step
 // ADXL335 Sensitivity(from datasheet) => 330mV/g, 3.22mV/ADC step => 330/3.22 = 102.48
@@ -76,13 +78,6 @@
 #define FALSE 0
 #define TRUE 1
 
-/*Select hardware version - comment out one pair below*/
-
-//  uint8_t sensors[6] = {0,2,1,3,5,4};   // Use these two lines for Hardware v1 (w/ daughterboards)
-//  int SENSOR_SIGN[]= {1,-1,1,-1,1,-1,-1,-1,-1};  //Sensor: GYROX, GYROY, GYROZ, ACCELX, ACCELY, ACCELZ
-
-  uint8_t sensors[6] = {6,7,3,0,1,2};  // For Hardware v2 flat
-  int SENSOR_SIGN[] = {1,-1,-1,1,-1,1,-1,-1,-1};
 
 float G_Dt=0.02;    // Integration time (DCM algorithm)
 
@@ -188,6 +183,18 @@ volatile uint8_t analog_reference = DEFAULT;
 volatile uint16_t analog_buffer[8];
 volatile uint8_t analog_count[8];
 
+
+ #if BOARD_VERSION == 1
+  uint8_t sensors[6] = {0,2,1,3,5,4};   // Use these two lines for Hardware v1 (w/ daughterboards)
+  int SENSOR_SIGN[]= {1,-1,1,-1,1,-1,-1,-1,-1};  //Sensor: GYROX, GYROY, GYROZ, ACCELX, ACCELY, ACCELZ
+ #endif
+ 
+ #if BOARD_VERSION == 2
+  uint8_t sensors[6] = {6,7,3,0,1,2};  // For Hardware v2 flat
+  int SENSOR_SIGN[] = {1,-1,-1,1,-1,1,-1,-1,-1};
+ #endif
+ 
+
 //*****************************************************************************************
 void setup()
 { 
@@ -204,11 +211,13 @@ void setup()
   Analog_Reference(EXTERNAL);//Using external analog reference
   Analog_Init();
   
-  #if USE_MAGNETOMETER==1
-  I2C_Init();
-  delay(100);
-  // Magnetometer initialization
-  Compass_Init();
+  #if BOARD_VERSION != 1
+    #if USE_MAGNETOMETER==1
+      I2C_Init();
+      delay(100);
+      // Magnetometer initialization
+      Compass_Init();
+    #endif
   #endif
   
   Serial.print("ArduIMU: v");
@@ -248,13 +257,15 @@ void loop() //Main Loop
     
     // *** DCM algorithm
     Read_adc_raw();
-    #if USE_MAGNETOMETER==1
-    if (counter > 5)  // Read compass data at 10Hz... (5 loop runs)
-      {
-      counter=0;
-      Read_Compass();    // Read I2C magnetometer
-      Compass_Heading(); // Calculate magnetic heading  
-      }
+    #if BOARD_VERSION != 1
+      #if USE_MAGNETOMETER==1
+      if (counter > 5)  // Read compass data at 10Hz... (5 loop runs)
+        {
+        counter=0;
+        Read_Compass();    // Read I2C magnetometer
+        Compass_Heading(); // Calculate magnetic heading  
+        }
+      #endif
     #endif
     Matrix_update(); 
     Normalize();
