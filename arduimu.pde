@@ -20,8 +20,8 @@
 #define BOARD_VERSION 2 // 1 For V1 and 2 for V2
 
 // Enable Air Start uses Remove Before Fly flag - connection to pin 6 on ArduPilot 
-#define ENABLE_AIR_START 1  //  1 if using Remove Before Fly, 0 if not
-#define RBF_PIN 8    //  Pin number used for Remove Before Fly (recommend 10 on v1 and 8 on v2 hardware)
+#define ENABLE_AIR_START 0  //  1 if using airstart/groundstart signaling, 0 if not
+#define GROUNDSTART_PIN 8    //  Pin number used for ground start signal (recommend 10 on v1 and 8 on v2 hardware)
 
 /*Min Speed Filter for Yaw drift Correction*/
 #define SPEEDFILT 2 // >1 use min speed filter for yaw drift cancellation, 0=do not use speed filter
@@ -39,7 +39,8 @@
 #define PRINT_BINARY 0   //Will print binary message and suppress ASCII messages (above)
 
 /* Support for optional magnetometer (1 enabled, 0 dissabled) */
-#define USE_MAGNETOMETER 1 // use 1 if you want to make yaw gyro drift corrections using the optional magnetometer                   
+#define USE_MAGNETOMETER 0 // use 1 if you want to make yaw gyro drift corrections using the optional magnetometer                   
+
 
 //**********************************************************************
 //  End of user parameters
@@ -85,6 +86,8 @@ long timeNow=0; // Hold the milliseond value for now
 long timer=0;   //general purpuse timer
 long timer_old;
 long timer24=0; //Second timer used to print values 
+boolean groundstartDone = false;    // Used to not repeat ground start
+
 float AN[8]; //array that store the 6 ADC filtered data
 float AN_OFFSET[8]; //Array that stores the Offset of the gyros
 
@@ -204,8 +207,8 @@ void setup()
   pinMode(5,OUTPUT); //Red LED
   pinMode(6,OUTPUT); // Blue LED
   pinMode(7,OUTPUT); // Yellow LED
-  pinMode(RBF_PIN,INPUT);  // Remove Before Fly flag (pin 6 on ArduPilot)
-  digitalWrite(RBF_PIN,HIGH);  // The Remove Before Fly flag will pull pin low if connected.
+  pinMode(GROUNDSTART_PIN,INPUT);  // Remove Before Fly flag (pin 6 on ArduPilot)
+  digitalWrite(GROUNDSTART_PIN,LOW);  // The Remove Before Fly flag will pull pin low if connected.
 
   
   Analog_Reference(EXTERNAL);//Using external analog reference
@@ -237,7 +240,7 @@ void setup()
   
 
   
-  if(ENABLE_AIR_START && digitalRead(RBF_PIN) == HIGH){
+  if(ENABLE_AIR_START){
       debug_handler(1);
       //Serial.println("***Air Start");
       startup_air();
@@ -302,13 +305,15 @@ void loop() //Main Loop
     }
  cycleCount++;
     if (cycleCount >= 5){ 
-      cycleCount = 0;
-      // Do these things every 5th time through the main cycle 
-      // This section gets called every 1000/(20*5) = 10Hz
-      // doing it this way removes the need for another 'millis()' call
+        cycleCount = 0;
+        // Do these things every 5th time through the main cycle 
+        // This section gets called every 1000/(20*5) = 10Hz
+        // doing it this way removes the need for another 'millis()' call
       
-      decode_gps();
-
+        decode_gps();
+      
+        //Here we will check if we are getting a signal to ground start
+        if(digitalRead(GROUNDSTART_PIN) == HIGH && groundstartDone == false) startup_ground();
       
       // Display Status on LEDs
       // GYRO Saturation
@@ -401,6 +406,7 @@ void startup_ground(void)
     eeprom_busy_wait();
     eeprom_write_word((uint16_t *)	(y*2+2), temp);	
   }
+  groundstartDone = true;
   Serial.println("***Ground Start complete");
 }
 
