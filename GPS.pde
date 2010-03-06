@@ -79,6 +79,9 @@ void decode_gps(void)
           UBX_payload_counter=0;
           ck_a=0;
           ck_b=0;
+#if PERFORMANCE_REPORTING == 1
+          gps_payload_error_count++;
+#endif
         }
         break;
       case 5:
@@ -124,6 +127,9 @@ void decode_gps(void)
 
         else
         {
+#if PERFORMANCE_REPORTING == 1          
+            gps_checksum_error_count++;
+#endif
             debug_handler(10);    
             Serial.print("???");
             Serial.print((int)UBX_ck_a);
@@ -168,6 +174,9 @@ void parse_ubx_gps()
     switch(UBX_id)//Checking the UBX ID
     {
       case 0x02: //ID NAV-POSLLH 
+#if PERFORMANCE_REPORTING == 1
+         gps_pos_fix_count++;
+#endif
         j=0;
         iTOW = join_4_bytes(&UBX_buffer[j]);
         j+=4;
@@ -220,7 +229,10 @@ void parse_ubx_gps()
         numSV=UBX_buffer[47]; //Number of sats...     
     break;
 
-    case 0x12:// ID NAV-VELNED 
+    case 0x12:// ID NAV-VELNED  
+#if PERFORMANCE_REPORTING == 1
+         gps_nav_fix_count++;
+#endif
       j=16;
       speed_3d = (float)join_4_bytes(&UBX_buffer[j])/100.0; // m/s
       j+=4;

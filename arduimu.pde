@@ -20,23 +20,24 @@
 #define BOARD_VERSION 2 // 1 For V1 and 2 for V2
 
 // Enable Air Start uses Remove Before Fly flag - connection to pin 6 on ArduPilot 
-#define ENABLE_AIR_START 0  //  1 if using airstart/groundstart signaling, 0 if not
+#define ENABLE_AIR_START 1  //  1 if using airstart/groundstart signaling, 0 if not
 #define GROUNDSTART_PIN 8    //  Pin number used for ground start signal (recommend 10 on v1 and 8 on v2 hardware)
 
 /*Min Speed Filter for Yaw drift Correction*/
 #define SPEEDFILT 2 // >1 use min speed filter for yaw drift cancellation, 0=do not use speed filter
 
 /*For debugging propurses*/
-#define PRINT_DEBUG 1   //Will print Debug messages
+#define PRINT_DEBUG 0   //Will print Debug messages
 
 //OUTPUTMODE=1 will print the corrected data, 0 will print uncorrected data of the gyros (with drift), 2 will print accelerometer only data
 #define OUTPUTMODE 1
 
 #define PRINT_DCM 0     //Will print the whole direction cosine matrix
-#define PRINT_ANALOGS 1 //Will print the analog raw data
+#define PRINT_ANALOGS 0 //Will print the analog raw data
 #define PRINT_EULER 1   //Will print the Euler angles Roll, Pitch and Yaw
 #define PRINT_GPS 1     //Will print GPS data
-#define PRINT_BINARY 0   //Will print binary message and suppress ASCII messages (above)
+#define PRINT_BINARY 1   //Will print binary message and suppress ASCII messages (above)
+#define PERFORMANCE_REPORTING 1  //Will include performance reports in the binary output ~ 1/min
 
 /* Support for optional magnetometer (1 enabled, 0 dissabled) */
 #define USE_MAGNETOMETER 0 // use 1 if you want to make yaw gyro drift corrections using the optional magnetometer                   
@@ -197,6 +198,24 @@ volatile uint8_t analog_count[8];
   int SENSOR_SIGN[] = {1,-1,-1,1,-1,1,-1,-1,-1};
  #endif
  
+ // Performance Monitoring variables
+ // Data collected and reported for ~1/2 minute intervals
+ #if PERFORMANCE_REPORTING == 1
+ int mainLoop_count = 0;              //Main loop cycles since last report
+ int G_Dt_max = 0.0;                  //Max main loop cycle time in milliseconds
+ byte gyro_sat_count = 0;
+ byte adc_constraints = 0;
+ byte renorm_sqrt_count = 0;
+ byte renorm_blowup_count = 0;
+ byte gps_payload_error_count = 0;
+ byte gps_checksum_error_count = 0;
+ byte gps_pos_fix_count = 0;
+ byte gps_nav_fix_count = 0;
+ byte gps_messages_sent = 0;
+ long perf_mon_timer = 0;
+ #endif
+ 
+ 
 
 //*****************************************************************************************
 void setup()
@@ -268,6 +287,10 @@ void loop() //Main Loop
     counter++;
     timer_old = timer;
     timer = timeNow;
+#if PERFORMANCE_REPORTING == 1
+    mainLoop_count++;
+    if (timer-timer_old > G_Dt_max) G_Dt_max = timer-timer_old;
+#endif
     G_Dt = (timer-timer_old)/1000.0;    // Real time of loop run. We use this on the DCM algorithm (gyro integration time)
     if(G_Dt > 1)
       {
@@ -301,6 +324,9 @@ void loop() //Main Loop
     if((abs(Gyro_Vector[0])>=ToRad(300))||(abs(Gyro_Vector[1])>=ToRad(300))||(abs(Gyro_Vector[2])>=ToRad(300)))
     {
       gyro_sat=1;
+#if PERFORMANCE_REPORTING == 1
+      gyro_sat_count++;
+#endif
       digitalWrite(5,HIGH);  
     }
  cycleCount++;
@@ -362,6 +388,13 @@ void loop() //Main Loop
       #endif
     }
   }
+#if PERFORMANCE_REPORTING == 1
+  if (timeNow-perf_mon_timer > 30000) 
+  {
+      printPerfData(timeNow-perf_mon_timer);
+      perf_mon_timer=timeNow;
+  }
+#endif
   
 }
 

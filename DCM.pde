@@ -20,8 +20,11 @@ void Normalize(void)
   if (renorm < 1.5625f && renorm > 0.64f) {
     renorm= .5 * (3-renorm);                                                 //eq.21
   } else if (renorm < 100.0f && renorm > 0.01f) {
-    renorm= 1. / sqrt(renorm);  
-	#if PRINT_DEBUG != 0
+    renorm= 1. / sqrt(renorm);
+#if PERFORMANCE_REPORTING == 1  
+    renorm_sqrt_count++;
+#endif
+#if PRINT_DEBUG != 0
     Serial.print("???SQT:1,RNM:");
     Serial.print (renorm);
     Serial.print (",ERR:");
@@ -32,6 +35,9 @@ void Normalize(void)
 #endif
   } else {
     problem = TRUE;
+#if PERFORMANCE_REPORTING == 1
+    renorm_blowup_count++;
+#endif
 	#if PRINT_DEBUG != 0
     Serial.print("???PRB:1,RNM:");
     Serial.print (renorm);
@@ -48,7 +54,10 @@ void Normalize(void)
   if (renorm < 1.5625f && renorm > 0.64f) {
     renorm= .5 * (3-renorm);                                                 //eq.21
   } else if (renorm < 100.0f && renorm > 0.01f) {
-    renorm= 1. / sqrt(renorm);    
+    renorm= 1. / sqrt(renorm);  
+#if PERFORMANCE_REPORTING == 1    
+    renorm_sqrt_count++;
+#endif
 #if PRINT_DEBUG != 0
     Serial.print("???SQT:2,RNM:");
     Serial.print (renorm);
@@ -60,6 +69,9 @@ void Normalize(void)
 #endif
   } else {
     problem = TRUE;
+#if PERFORMANCE_REPORTING == 1
+    renorm_blowup_count++;
+#endif
 #if PRINT_DEBUG != 0
     Serial.print("???PRB:2,RNM:");
     Serial.print (renorm);
@@ -76,7 +88,10 @@ void Normalize(void)
   if (renorm < 1.5625f && renorm > 0.64f) {
     renorm= .5 * (3-renorm);                                                 //eq.21
   } else if (renorm < 100.0f && renorm > 0.01f) {
-    renorm= 1. / sqrt(renorm);  
+    renorm= 1. / sqrt(renorm);   
+#if PERFORMANCE_REPORTING == 1 
+    renorm_sqrt_count++;
+#endif
 #if PRINT_DEBUG != 0
     Serial.print("???SQT:3,RNM:");
     Serial.print (renorm);
@@ -87,7 +102,10 @@ void Normalize(void)
     Serial.println("***");    
 #endif
   } else {
-    problem = TRUE;
+    problem = TRUE;  
+#if PERFORMANCE_REPORTING == 1
+    renorm_blowup_count++;
+#endif
 #if PRINT_DEBUG != 0
     Serial.print("???PRB:3,RNM:");
     Serial.print (renorm);

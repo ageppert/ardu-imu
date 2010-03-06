@@ -31,27 +31,33 @@ float read_adc(int select)
   float temp;
   if (SENSOR_SIGN[select]<0){
     temp = (AN_OFFSET[select]-AN[select]);
-#if PRINT_DEBUG != 0
     if (abs(temp)>900) {
+#if PRINT_DEBUG != 0
     Serial.print("!!!ADC:1,VAL:");
     Serial.print (temp);
     Serial.print (",TOW:");
     Serial.print (iTOW);  
-    Serial.println("***");    
-    }
+    Serial.println("***");
 #endif
+#if PERFORMANCE_REPORTING == 1
+    adc_constraints++;   
+#endif 
+    }
     return constrain(temp,-900,900);             //Throw out nonsensical values
   } else {
     temp = (AN[select]-AN_OFFSET[select]); 
-#if PRINT_DEBUG != 0
     if (abs(temp)>900) {
+#if PRINT_DEBUG != 0
     Serial.print("!!!ADC:2,VAL:");
     Serial.print (temp);
     Serial.print (",TOW:");
     Serial.print (iTOW);  
-    Serial.println("***");    
-    } 
+    Serial.println("***");
+#endif    
+#if PERFORMANCE_REPORTING == 1
+    adc_constraints++; 
 #endif
+    } 
     return constrain(temp,-900,900);
   }
 }
