@@ -227,7 +227,7 @@ void setup()
   pinMode(6,OUTPUT); // Blue LED
   pinMode(7,OUTPUT); // Yellow LED
   pinMode(GROUNDSTART_PIN,INPUT);  // Remove Before Fly flag (pin 6 on ArduPilot)
-  digitalWrite(GROUNDSTART_PIN,LOW);  // The Remove Before Fly flag will pull pin low if connected.
+  digitalWrite(GROUNDSTART_PIN,HIGH);
 
   
   Analog_Reference(EXTERNAL);//Using external analog reference
@@ -339,7 +339,7 @@ void loop() //Main Loop
         decode_gps();
       
         //Here we will check if we are getting a signal to ground start
-        if(digitalRead(GROUNDSTART_PIN) == HIGH && groundstartDone == false) startup_ground();
+        if(digitalRead(GROUNDSTART_PIN) == LOW && groundstartDone == false) startup_ground();
       
       // Display Status on LEDs
       // GYRO Saturation
@@ -403,6 +403,7 @@ void startup_ground(void)
 {
   uint16_t temp=0;
   
+  debug_handler(2);
   for(int c=0; c<ADC_WARM_CYCLES; c++)
   { 
     digitalWrite(7,LOW);

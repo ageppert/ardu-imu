@@ -159,8 +159,9 @@ void printdata(void)
 		}
       	Serial.print(IMU_ck_a);
       	Serial.print(IMU_ck_b);
-      /*
-      
+  
+   
+   /*   
       #if PERFORMANCE_REPORTING == 1
 			gps_messages_sent++;
 		#endif
@@ -222,7 +223,7 @@ void printdata(void)
 		}
       	Serial.print(IMU_ck_a);
       	Serial.print(IMU_ck_b);
-        */  
+ */        
 	} else {
       
 	  // This section outputs the IMU orientatiom message
@@ -253,6 +254,7 @@ void printdata(void)
           Serial.print(IMU_ck_b);
           
     }
+
          
 #endif  
 }
