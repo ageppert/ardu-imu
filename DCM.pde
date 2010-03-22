@@ -141,6 +141,7 @@ void Drift_correction(void)
   float Accel_magnitude;
   float Accel_weight;
   float Integrator_magnitude;
+  float tempfloat;
   
   //*****Roll and Pitch***************
 
@@ -150,7 +151,13 @@ void Drift_correction(void)
   // Dynamic weighting of accelerometer info (reliability filter)
   // Weight for accelerometer info (<0.5G = 0.0, 1G = 1.0 , >1.5G = 0.0)
   Accel_weight = constrain(1 - 2*abs(1 - Accel_magnitude),0,1);  //  
-
+  
+  #if PERFORMANCE_REPORTING == 1
+    tempfloat = ((Accel_weight - 0.5) * 256.0f);    //amount added was determined to give imu_health a time constant about twice the time constant of the roll/pitch drift correction
+    imu_health += tempfloat;
+    imu_health = constrain(imu_health,129,65405);
+  #endif
+  
   Vector_Cross_Product(&errorRollPitch[0],&Accel_Vector[0],&DCM_Matrix[2][0]); //adjust the ground of reference
   Vector_Scale(&Omega_P[0],&errorRollPitch[0],Kp_ROLLPITCH*Accel_weight);
   

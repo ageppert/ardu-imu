@@ -38,7 +38,7 @@ void decode_gps(void)
   int numc;
   
   numc = Serial.available();
-  if (numc > 0)
+  if (numc > 0) {
     for (int i=0;i<numc;i++)  // Process bytes received
     {
       data = Serial.read();
@@ -154,11 +154,13 @@ void decode_gps(void)
         break;
 	}
     }    // End for...
+  }  
   if(DIYmillis() - GPS_timer > 2000){
       digitalWrite(6, LOW);  //If we don't receive any byte in two seconds turn off gps fix LED...
       debug_print("Yeah, your GPS is disconnected"); 
       gpsFix=1; 
   }
+  
 }
 
 /****************************************************************
@@ -180,13 +182,13 @@ void parse_ubx_gps()
         j=0;
         iTOW = join_4_bytes(&UBX_buffer[j]);
         j+=4;
-        lon = (float)join_4_bytes(&UBX_buffer[j])/10000000.0;
+        lon = join_4_bytes(&UBX_buffer[j]);
         j+=4;
-        lat = (float)join_4_bytes(&UBX_buffer[j])/10000000.0;
+        lat = join_4_bytes(&UBX_buffer[j]);
         j+=4;
-        alt = (float)join_4_bytes(&UBX_buffer[j])/1000.0;
+        alt = join_4_bytes(&UBX_buffer[j]);
         j+=4;
-        alt_MSL = (float)join_4_bytes(&UBX_buffer[j])/1000.0;
+        alt_MSL = join_4_bytes(&UBX_buffer[j]);
         j+=4;
         /*
         hacc = (float)join_4_bytes(&UBX_buffer[j])/1000.0;

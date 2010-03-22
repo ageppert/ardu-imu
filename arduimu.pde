@@ -36,7 +36,7 @@
 #define PRINT_ANALOGS 0 //Will print the analog raw data
 #define PRINT_EULER 1   //Will print the Euler angles Roll, Pitch and Yaw
 #define PRINT_GPS 1     //Will print GPS data
-#define PRINT_BINARY 1   //Will print binary message and suppress ASCII messages (above)
+#define PRINT_BINARY 0   //Will print binary message and suppress ASCII messages (above)
 #define PERFORMANCE_REPORTING 1  //Will include performance reports in the binary output ~ 1/min
 
 /* Support for optional magnetometer (1 enabled, 0 dissabled) */
@@ -70,6 +70,7 @@
 #define Kp_ROLLPITCH 0.015
 #define Ki_ROLLPITCH 0.000010
 #define Kp_YAW 1.2
+//#define Kp_YAW 2.5      //High yaw drift correction gain - use with caution!
 #define Ki_YAW 0.00005
 
 /*UBLOX Maximum payload length*/
@@ -156,11 +157,11 @@ union int_union {
 /*Flight GPS variables*/
 int gpsFix=1; //This variable store the status of the GPS
 int gpsFixnew=0; //used to flag when new gps data received - used for binary output message flags
-float lat=0; // store the Latitude from the gps
-float lon=0;// Store guess what?
-float alt_MSL=0; //This is the alt.
+long lat=0; // store the Latitude from the gps to pass to output
+long lon=0; // Store the Longitude from the gps to pass to output
+long alt_MSL=0; //This is the alt.in millimeters
 long iTOW=0; //GPS Millisecond Time of Week
-long alt=0;  //Height above Ellipsoid 
+long alt=0;  //Height above Ellipsoid in millimeters
 float speed_3d=0; //Speed (3-D)
 float ground_speed=0;// This is the velocity your "plane" is traveling in meters for second, 1Meters/Second= 3.6Km/H = 1.944 knots
 float ground_course=90;//This is the runaway direction of you "plane" in degrees
@@ -213,9 +214,8 @@ volatile uint8_t analog_count[8];
  byte gps_nav_fix_count = 0;
  byte gps_messages_sent = 0;
  long perf_mon_timer = 0;
+ unsigned int imu_health = 65012;
  #endif
- 
- 
 
 //*****************************************************************************************
 void setup()
@@ -280,7 +280,7 @@ void setup()
 //***************************************************************************************
 void loop() //Main Loop
 {
-  timeNow = DIYmillis();
+  timeNow = millis();
  
   if((timeNow-timer)>=20)  // Main loop runs at 50Hz
   {
@@ -298,7 +298,9 @@ void loop() //Main Loop
       }
     
     // *** DCM algorithm
+   
     Read_adc_raw();
+    
     #if BOARD_VERSION != 1
       #if USE_MAGNETOMETER==1
       if (counter > 5)  // Read compass data at 10Hz... (5 loop runs)
@@ -309,10 +311,15 @@ void loop() //Main Loop
         }
       #endif
     #endif
+    
     Matrix_update(); 
+
     Normalize();
+
     Drift_correction();
+   
     Euler_angles();
+    
     #if PRINT_BINARY == 1
       printdata(); //Send info via serial
     #endif
@@ -329,6 +336,8 @@ void loop() //Main Loop
 #endif
       digitalWrite(5,HIGH);  
     }
+
+    
  cycleCount++;
     if (cycleCount >= 5){ 
         cycleCount = 0;
@@ -337,7 +346,6 @@ void loop() //Main Loop
         // doing it this way removes the need for another 'millis()' call
       
         decode_gps();
-      
         //Here we will check if we are getting a signal to ground start
         if(digitalRead(GROUNDSTART_PIN) == LOW && groundstartDone == false) startup_ground();
       
@@ -387,15 +395,17 @@ void loop() //Main Loop
         printdata(); //Send info via serial
       #endif
     }
-  }
+     
+  
 #if PERFORMANCE_REPORTING == 1
-  if (timeNow-perf_mon_timer > 30000) 
-  {
+    if (timeNow-perf_mon_timer > 30000) 
+    {
       printPerfData(timeNow-perf_mon_timer);
       perf_mon_timer=timeNow;
-  }
+    }
 #endif
-  
+
+  }
 }
 
 //********************************************************************************
@@ -510,7 +520,7 @@ void debug_handler(byte message)
   #endif
   
 }
-    
+   
 /*
 EEPROM memory map
 
