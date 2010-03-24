@@ -78,7 +78,7 @@ void printdata(void)
       Serial.print(",LON:");
       Serial.print(lon);
       Serial.print(",ALT:");
-      Serial.print(alt_MSL*1000);
+      Serial.print(alt_MSL/1000);
       Serial.print(",COG:");
       Serial.print((ground_course));
       Serial.print(",SOG:");
@@ -136,7 +136,7 @@ void printdata(void)
 		IMU_buffer[8]=(templong>>16)&0xff;
 		IMU_buffer[9]=(templong>>24)&0xff;
       
-		tempint=alt_MSL/100;   // Altitude MSL in meters * 10 in 2 bytes
+		tempint=alt_MSL / 100;   // Altitude MSL in meters * 10 in 2 bytes
 		IMU_buffer[10]=tempint&0xff;
 		IMU_buffer[11]=(tempint>>8)&0xff;
       

@@ -11,13 +11,14 @@
 #include <Wire.h>
 
 //**********************************************************************
-//  This section contains user parameters
+//  This section contains USER PARAMETERS !!!
 //**********************************************************************
 
 // *** NOTE!   Hardware version - Can be used for v1 (daughterboards) or v2 (flat)
-// Select the correct statements at line 84
-
 #define BOARD_VERSION 2 // 1 For V1 and 2 for V2
+
+// Ublox gps is recommended!
+#define GPS_PROTOCOL 1    // 1 - Ublox,  2 - EM406,  3 - NMEA    We have only tested with Ublox
 
 // Enable Air Start uses Remove Before Fly flag - connection to pin 6 on ArduPilot 
 #define ENABLE_AIR_START 1  //  1 if using airstart/groundstart signaling, 0 if not
@@ -36,8 +37,12 @@
 #define PRINT_ANALOGS 0 //Will print the analog raw data
 #define PRINT_EULER 1   //Will print the Euler angles Roll, Pitch and Yaw
 #define PRINT_GPS 1     //Will print GPS data
+
+// *** NOTE!   To use AdruIMU with ArduPilot you must select binary output messages
 #define PRINT_BINARY 0   //Will print binary message and suppress ASCII messages (above)
-#define PERFORMANCE_REPORTING 1  //Will include performance reports in the binary output ~ 1/min
+
+// *** NOTE!   Performance reporting is only supported for Ublox.  Set to 0 for others
+#define PERFORMANCE_REPORTING 1  //Will include performance reports in the binary output ~ 1/2 min
 
 /* Support for optional magnetometer (1 enabled, 0 dissabled) */
 #define USE_MAGNETOMETER 0 // use 1 if you want to make yaw gyro drift corrections using the optional magnetometer                   
@@ -159,7 +164,7 @@ int gpsFix=1; //This variable store the status of the GPS
 int gpsFixnew=0; //used to flag when new gps data received - used for binary output message flags
 long lat=0; // store the Latitude from the gps to pass to output
 long lon=0; // Store the Longitude from the gps to pass to output
-long alt_MSL=0; //This is the alt.in millimeters
+long alt_MSL=0; //This is the altitude in millimeters
 long iTOW=0; //GPS Millisecond Time of Week
 long alt=0;  //Height above Ellipsoid in millimeters
 float speed_3d=0; //Speed (3-D)
@@ -169,6 +174,7 @@ byte numSV=0; //Number of Sats used.
 float ecefVZ=0; //Vertical Speed in m/s
 unsigned long GPS_timer=0;
 
+#if GPS_PROTOCOL == 1
 // GPS UBLOX
 byte ck_a=0;    // Packet checksum
 byte ck_b=0;
@@ -181,6 +187,7 @@ byte UBX_payload_counter=0;
 byte UBX_buffer[UBX_MAXPAYLOAD];
 byte UBX_ck_a=0;
 byte UBX_ck_b=0;
+#endif
 
 //ADC variables
 volatile uint8_t MuxSel=0;
