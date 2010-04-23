@@ -32,7 +32,8 @@ void init_gps(void)
   Serial.begin(38400); 
   pinMode(2,OUTPUT); //Serial Mux
   digitalWrite(2,HIGH); //Serial Mux
-}  
+} 
+
 /****************************************************************
  * 
  ****************************************************************/
@@ -176,6 +177,7 @@ void decode_gps(void)
 void parse_ubx_gps()
 {
   int j;
+  
 //Verifing if we are in class 1, you can change this "IF" for a "Switch" in case you want to use other UBX classes.. 
 //In this case all the message im using are in class 1, to know more about classes check PAGE 60 of DataSheet.
   if(UBX_class==0x01) 
@@ -203,12 +205,12 @@ void parse_ubx_gps()
         vacc = (float)join_4_bytes(&UBX_buffer[j])/1000.0;
         j+=4;
         */
+          gpsFixnew=1;  //new information available flag for binary message
       break;
     case 0x03://ID NAV-STATUS 
        if((UBX_buffer[4] >= 0x03)&&(UBX_buffer[5]&0x01))
         {
           gpsFix=0; //valid position
-          gpsFixnew=1;  //new information available flag for binary message
           digitalWrite(6,HIGH);  //Turn LED when gps is fixed. 
           GPS_timer=DIYmillis(); //Restarting timer...
         }
@@ -223,7 +225,6 @@ void parse_ubx_gps()
        if((UBX_buffer[10] >= 0x03)&&(UBX_buffer[11]&0x01))
         {
           gpsFix=0; //valid position
-          gpsFixnew=1;  //new information available flag for binary message
           digitalWrite(6,HIGH);  //Turn LED when gps is fixed. 
           GPS_timer=DIYmillis(); //Restarting timer...
         }
@@ -255,6 +256,7 @@ void parse_ubx_gps()
       headacc = join_4_bytes(&UBX_buffer[j]) // Heading accuracy
       j+=4;
       */
+	  if (ground_speed > SPEEDFILT && gpsFix==0) gc_offset = ground_course - ToDeg(yaw);
       break; 
       }
     }   

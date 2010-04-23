@@ -1,6 +1,7 @@
 // Released under Creative Commons License 
 // Code by Jordi Munoz and William Premerlani, Supported by Chris Anderson (Wired) and Nathan Sindle (SparkFun).
 // Version 1.0 for flat board updated by Doug Weibel and Jose Julio
+// Version 1.7 includes support for SCP1000 absolute pressure sensor
 
 // Axis definition: X axis pointing forward, Y axis pointing to the right and Z axis pointing down.
 // Positive pitch : nose up
@@ -12,6 +13,7 @@
 
 //**********************************************************************
 //  This section contains USER PARAMETERS !!!
+//
 //**********************************************************************
 
 // *** NOTE!   Hardware version - Can be used for v1 (daughterboards) or v2 (flat)
@@ -35,11 +37,11 @@
 
 #define PRINT_DCM 0     //Will print the whole direction cosine matrix
 #define PRINT_ANALOGS 0 //Will print the analog raw data
-#define PRINT_EULER 1   //Will print the Euler angles Roll, Pitch and Yaw
+#define PRINT_EULER 0   //Will print the Euler angles Roll, Pitch and Yaw
 #define PRINT_GPS 1     //Will print GPS data
 
 // *** NOTE!   To use ArduIMU with ArduPilot you must select binary output messages
-#define PRINT_BINARY 0   //Will print binary message and suppress ASCII messages (above)
+#define PRINT_BINARY 1   //Will print binary message and suppress ASCII messages (above)
 
 // *** NOTE!   Performance reporting is only supported for Ublox.  Set to 0 for others
 #define PERFORMANCE_REPORTING 1  //Will include performance reports in the binary output ~ 1/2 min
@@ -47,12 +49,15 @@
 /* Support for optional magnetometer (1 enabled, 0 dissabled) */
 #define USE_MAGNETOMETER 0 // use 1 if you want to make yaw gyro drift corrections using the optional magnetometer                   
 
+/* Support for optional barometer (1 enabled, 0 dissabled) */
+#define USE_BAROMETER 0 	// use 1 if you want to get altitude using the optional absolute pressure sensor                  
+#define ALT_MIX	50			// For binary messages: GPS or barometric altitude.  0 to 100 = % of barometric.  For example 75 gives 25% GPS alt and 75% baro
 
 //**********************************************************************
 //  End of user parameters
 //**********************************************************************
 
-#define SOFTWARE_VER "1.6"
+#define SOFTWARE_VER "1.7"
 
 // ADC : Voltage reference 3.3v / 10bits(1024 steps) => 3.22mV/ADC step
 // ADXL335 Sensitivity(from datasheet) => 330mV/g, 3.22mV/ADC step => 330/3.22 = 102.48
@@ -122,7 +127,6 @@ float errorCourse=180;
 float COGX=0; //Course overground X axis
 float COGY=1; //Course overground Y axis
 
-unsigned int counter=0;
 unsigned int cycleCount=0;
 byte gyro_sat=0;
 
@@ -162,6 +166,7 @@ union int_union {
 /*Flight GPS variables*/
 int gpsFix=1; //This variable store the status of the GPS
 int gpsFixnew=0; //used to flag when new gps data received - used for binary output message flags
+int gps_fix_count = 5;		//used to count 5 good fixes at ground startup
 long lat=0; // store the Latitude from the gps to pass to output
 long lon=0; // Store the Longitude from the gps to pass to output
 long alt_MSL=0; //This is the altitude in millimeters
@@ -170,6 +175,7 @@ long alt=0;  //Height above Ellipsoid in millimeters
 float speed_3d=0; //Speed (3-D)
 float ground_speed=0;// This is the velocity your "plane" is traveling in meters for second, 1Meters/Second= 3.6Km/H = 1.944 knots
 float ground_course=90;//This is the runaway direction of you "plane" in degrees
+float gc_offset = 0; // Force yaw output to ground course when fresh data available (only implemented for ublox&binary message)
 byte numSV=0; //Number of Sats used. 
 float ecefVZ=0; //Vertical Speed in m/s
 unsigned long GPS_timer=0;
@@ -221,8 +227,45 @@ volatile uint8_t analog_count[8];
  byte gps_nav_fix_count = 0;
  byte gps_messages_sent = 0;
  long perf_mon_timer = 0;
- unsigned int imu_health = 65012;
  #endif
+ unsigned int imu_health = 65012;
+
+//**********************************************************************
+//  This section contains SCP1000_D11 PARAMETERS !!!
+//********************************************************************** 
+#if USE_BAROMETER == 1
+#define SCP_MODE        (9)             // 9 = high speed mode, 10 = high resolution mode
+#define PRESSURE_ADDR   (0x11U)          // IIC address of the SCP1000
+// ************   #define START_ALTITUDE  (217U)           // default initial altitude in m above sea level 
+
+// When we have to manage data transfers via IIC directly we need to use the following addresses
+// IIC address of the SCP1000 device forms the Top 7 bits of the address with the R/W bit as the LSB
+#define READ_PRESSURE_ADDR    (PRESSURE_ADDR<<1 | 1)
+#define WRITE_PRESSURE_ADDR   (PRESSURE_ADDR<<1)
+
+// SCP1000 Register addresses
+#define SNS_ADDR_POPERATION     (0x03U)  // OPERATON register
+#define SNS_ADDR_PSTATUS        (0x07U)  // STATUS register
+#define SNS_ADDR_PPRESSURE      (0x80U)  // DATARD16 Register (pressure)
+#define SNS_ADDR_DATARD8	(0x7FU)  // DAYARD8 Register
+#define SNS_ADDR_PTEMP		(0x81U)	 // TEMPOUT Register (temperature)
+
+#ifndef TRUE
+#define TRUE          (0x01)
+#endif
+#ifndef FALSE
+#define FALSE         (0x00)
+#endif
+
+int temp_unfilt = 0;
+int temperature = 0;
+unsigned long press = 0;
+unsigned long press_filt = 0;
+unsigned long press_gnd = 0;
+long ground_alt = 0;				// Ground altitude in millimeters
+long press_alt = 0;					// Pressure altitude in millimeters
+
+#endif
 
 //*****************************************************************************************
 void setup()
@@ -254,7 +297,6 @@ void setup()
   //Serial.println(SOFTWARE_VER);
   debug_handler(0);//Printing version
   
-  #if BOARD_VERSION != 1
     #if USE_MAGNETOMETER==1
       debug_handler(3);
       I2C_Init();
@@ -262,16 +304,17 @@ void setup()
       // Magnetometer initialization
       Compass_Init();
     #endif
-  #endif
   
+  // SETUP FOR SCP1000_D11
+    #if USE_BAROMETER==1
+		debug_handler(4);
+		setup_scp();
+	#endif
 
-  
   if(ENABLE_AIR_START){
       debug_handler(1);
-      //Serial.println("***Air Start");
       startup_air();
   }else{
-      //Serial.println("***Ground Start");
       debug_handler(2);
       startup_ground();
   }
@@ -282,6 +325,7 @@ void setup()
   Read_adc_raw();     // ADC initialization
   timer=DIYmillis();
   delay(20);
+  
 }
 
 //***************************************************************************************
@@ -291,34 +335,22 @@ void loop() //Main Loop
  
   if((timeNow-timer)>=20)  // Main loop runs at 50Hz
   {
-    counter++;
     timer_old = timer;
     timer = timeNow;
+	
 #if PERFORMANCE_REPORTING == 1
     mainLoop_count++;
     if (timer-timer_old > G_Dt_max) G_Dt_max = timer-timer_old;
 #endif
+
     G_Dt = (timer-timer_old)/1000.0;    // Real time of loop run. We use this on the DCM algorithm (gyro integration time)
     if(G_Dt > 1)
-      {
-        G_Dt = 0;  //keeps dt from blowing up, goes to zero to keep gyros from departing
-      }
+        G_Dt = 0;  //Something is wrong - keeps dt from blowing up, goes to zero to keep gyros from departing
     
     // *** DCM algorithm
    
     Read_adc_raw();
-    
-    #if BOARD_VERSION != 1
-      #if USE_MAGNETOMETER==1
-      if (counter > 5)  // Read compass data at 10Hz... (5 loop runs)
-        {
-        counter=0;
-        Read_Compass();    // Read I2C magnetometer
-        Compass_Heading(); // Calculate magnetic heading  
-        }
-      #endif
-    #endif
-    
+
     Matrix_update(); 
 
     Normalize();
@@ -331,9 +363,6 @@ void loop() //Main Loop
       printdata(); //Send info via serial
     #endif
 
-
-    // ***
-    
     //Turn on the LED when you saturate any of the gyros.
     if((abs(Gyro_Vector[0])>=ToRad(300))||(abs(Gyro_Vector[1])>=ToRad(300))||(abs(Gyro_Vector[2])>=ToRad(300)))
     {
@@ -343,69 +372,78 @@ void loop() //Main Loop
 #endif
       digitalWrite(5,HIGH);  
     }
-
     
- cycleCount++;
-    if (cycleCount >= 5){ 
-        cycleCount = 0;
-        // Do these things every 5th time through the main cycle 
-        // This section gets called every 1000/(20*5) = 10Hz
+	cycleCount++;
+
+        // Do these things every 6th time through the main cycle 
+        // This section gets called every 1000/(20*6) = 8 1/3 Hz
         // doing it this way removes the need for another 'millis()' call
+		// and balances the processing load across main loop cycles.
+		switch (cycleCount) {
+			case(0):
+				decode_gps();
+				break;
+				
+			case(1):
+				//Here we will check if we are getting a signal to ground start
+				if(digitalRead(GROUNDSTART_PIN) == LOW && groundstartDone == false) 
+					startup_ground();
+				break;
+				
+			case(2):
+				#if USE_BAROMETER==1
+					ReadSCP1000();    // Read I2C absolute pressure sensor
+					press_filt = (press + 2l * press_filt) / 3l;		//Light filtering
+					//temperature = (temperature * 9 + temp_unfilt) / 10;    We will just use the ground temp for the altitude calculation
+				#endif
+				break;
+				
+			case(3):
+				#if USE_MAGNETOMETER==1
+					Read_Compass();    // Read I2C magnetometer
+					Compass_Heading(); // Calculate magnetic heading  
+				#endif
+				break;
+			
+			case(4):
+				// Display Status on LEDs
+				// GYRO Saturation indication
+				if(gyro_sat>=1) {
+					digitalWrite(5,HIGH); //Turn Red LED when gyro is saturated. 
+					if(gyro_sat>=8)  // keep the LED on for 8/10ths of a second
+						gyro_sat=0;
+					else
+						gyro_sat++;
+				} else {
+					digitalWrite(5,LOW);
+				}
       
-        decode_gps();
-        //Here we will check if we are getting a signal to ground start
-        if(digitalRead(GROUNDSTART_PIN) == LOW && groundstartDone == false) startup_ground();
+				// YAW drift correction indication
+				if(ground_speed<SPEEDFILT) {
+					digitalWrite(7,HIGH);    //  Turn on yellow LED if speed too slow and yaw correction supressed
+				} else {
+					digitalWrite(7,LOW);
+				}
       
-      // Display Status on LEDs
-      // GYRO Saturation
-
-
-      if(gyro_sat>=1)
-      {
-        digitalWrite(5,HIGH); //Turn Red LED when gyro is saturated. 
-        if(gyro_sat>=8)  // keep the LED on for 8/10ths of a second
-
-
-          gyro_sat=0;
-        else
-          gyro_sat++;
-      }
-      else
-      {
-        digitalWrite(5,LOW);
-      }
-      
-      // YAW correction
-      if(ground_speed<SPEEDFILT)
-      {
-        digitalWrite(7,HIGH);    //  Turn on yellow LED if speed too slow and yaw correction supressed
-      }
-      else
-      {
-        digitalWrite(7,LOW);
-      }
-      
-      // GPS Fix
-      if(gpsFix==0)  // yep its backwards 0 means a good fix in GPS world!
-      {
-        digitalWrite(6,HIGH);  //Turn Blue LED when gps is fixed. 
-      }
-      else
-      {
-        digitalWrite(6,LOW);
-      }
-      
-      // 
-
-
-      #if !PRINT_BINARY
-        printdata(); //Send info via serial
-      #endif
-    }
+				// GPS Fix indication
+				if(gpsFix==0) {  // yep its backwards 0 means a good fix in GPS world!
+					digitalWrite(6,HIGH);  //Turn Blue LED when gps is fixed. 
+				} else {
+					digitalWrite(6,LOW);
+				}
+				break;
+				
+			case(5):
+				cycleCount = -1;		// Reset case counter, will be incremented to zero before switch statement
+				#if !PRINT_BINARY
+					printdata(); //Send info via serial
+				#endif
+				break;
+		}
      
   
 #if PERFORMANCE_REPORTING == 1
-    if (timeNow-perf_mon_timer > 30000) 
+    if (timeNow-perf_mon_timer > 20000) 
     {
       printPerfData(timeNow-perf_mon_timer);
       perf_mon_timer=timeNow;
@@ -413,52 +451,103 @@ void loop() //Main Loop
 #endif
 
   }
+
 }
 
 //********************************************************************************
 void startup_ground(void)
 {
-  uint16_t temp=0;
+	uint16_t store=0;
+	int flashcount = 0;
+ 
+	debug_handler(2);
+	for(int c=0; c<ADC_WARM_CYCLES; c++)
+	{ 
+		digitalWrite(7,LOW);
+		digitalWrite(6,HIGH);
+		digitalWrite(5,LOW);
+		delay(50);
+		Read_adc_raw();
+		digitalWrite(7,HIGH);
+		digitalWrite(6,LOW);
+		digitalWrite(5,HIGH);
+		delay(50);
+	}
   
-  debug_handler(2);
-  for(int c=0; c<ADC_WARM_CYCLES; c++)
-  { 
-    digitalWrite(7,LOW);
-    digitalWrite(6,HIGH);
-    digitalWrite(5,LOW);
-    delay(50);
-    Read_adc_raw();
-    digitalWrite(7,HIGH);
-    digitalWrite(6,LOW);
-    digitalWrite(5,HIGH);
-    delay(50);
-  }
-  digitalWrite(5,LOW);
-  digitalWrite(7,LOW);
+	Read_adc_raw();
+	delay(20);
+	Read_adc_raw();
+	for(int y=0; y<=5; y++)   // Read first initial ADC values for offset.
+		AN_OFFSET[y]=AN[y];
+#if USE_BAROMETER==1
+	ReadSCP1000();
+	press_gnd = press;
+	temperature = temp_unfilt;
+	delay(20);
+#endif
+
+	for(int i=0;i<400;i++)    // We take some readings...
+	{
+		Read_adc_raw();
+		for(int y=0; y<=5; y++)   // Read initial ADC values for offset (averaging).
+			AN_OFFSET[y]=AN_OFFSET[y]*0.8 + AN[y]*0.2;
+		delay(20);
+		if(flashcount == 5) {
+			digitalWrite(7,LOW);
+			digitalWrite(6,HIGH);
+			digitalWrite(5,LOW);
+		}
+		if(flashcount >= 10) {
+			flashcount = 0;
+#if USE_BAROMETER==1
+			ReadSCP1000();
+			press_gnd = (press_gnd * 9l + press) / 10l;
+			temperature = (temperature * 9 + temp_unfilt) / 10;
+
+#endif
+			digitalWrite(7,HIGH);
+			digitalWrite(6,LOW);
+			digitalWrite(5,HIGH);
+		}
+		flashcount++;
+		
+        }
+	digitalWrite(5,LOW);
+	digitalWrite(6,LOW);
+	digitalWrite(7,LOW);
+	
+	AN_OFFSET[5]-=GRAVITY*SENSOR_SIGN[5];
   
-  Read_adc_raw();
-  delay(20);
-  Read_adc_raw();
-  for(int y=0; y<=5; y++)   // Read first initial ADC values for offset.
-    AN_OFFSET[y]=AN[y];
-  delay(20);
-  for(int i=0;i<400;i++)    // We take some readings...
-    {
-    Read_adc_raw();
-    for(int y=0; y<=5; y++)   // Read initial ADC values for offset (averaging).
-      AN_OFFSET[y]=AN_OFFSET[y]*0.8 + AN[y]*0.2;
-    delay(20);
-    }
-  AN_OFFSET[5]-=GRAVITY*SENSOR_SIGN[5];
-  for(int y=0; y<=5; y++)
-  {
-    Serial.println(AN_OFFSET[y]);
-    temp = ((AN_OFFSET[y]-200.f)*100.0f);
-    eeprom_busy_wait();
-    eeprom_write_word((uint16_t *)	(y*2+2), temp);	
-  }
-  groundstartDone = true;
-  Serial.println("***Ground Start complete");
+	for(int y=0; y<=5; y++)
+	{
+		Serial.println(AN_OFFSET[y]);
+		store = ((AN_OFFSET[y]-200.f)*100.0f);
+		eeprom_busy_wait();
+		eeprom_write_word((uint16_t *)	(y*2+2), store);	
+	}
+
+	while (gps_fix_count > 0) {
+		decode_gps();
+//  Serial.print(gpsFix);
+//  Serial.print(", ");
+//  Serial.println(gpsFixnew);
+		if (gpsFix == 0 && gpsFixnew == 1) {
+			gpsFixnew = 0;
+			gps_fix_count--;
+		}
+	}
+#if USE_BAROMETER==1
+	press_filt = press_gnd;
+	ground_alt = alt_MSL;
+	eeprom_busy_wait();
+	eeprom_write_dword((uint32_t *)0x10, press_gnd);
+	eeprom_busy_wait();
+	eeprom_write_word((uint16_t *)0x14, temperature);
+	eeprom_busy_wait();
+	eeprom_write_word((uint16_t *)0x16, (ground_alt/1000));
+#endif	
+	groundstartDone = true;
+	debug_handler(6);
 }
 
 //************************************************************************************
@@ -473,6 +562,16 @@ void startup_air(void)
     AN_OFFSET[y] = temp/100.f+200.f;	
     Serial.println(AN_OFFSET[y]);
   }
+#if USE_BAROMETER==1
+	eeprom_busy_wait();
+	press_gnd = eeprom_read_dword((uint32_t *) 0x10);
+	press_filt = press_gnd;	
+	eeprom_busy_wait();
+	temperature = eeprom_read_word((uint16_t *) 0x14);
+	eeprom_busy_wait();
+	ground_alt = eeprom_read_word((uint16_t *) 0x16);
+	ground_alt *= 1000;
+#endif	
       Serial.println("***Air Start complete");
 }    
 
@@ -492,39 +591,51 @@ void debug_handler(byte message)
   
   static unsigned long BAD_Checksum=0;
   
-   switch(message) 
-   {
-      case 0:
-      Serial.print("???Software Version ");
-      Serial.print(SOFTWARE_VER);
-      Serial.println("***");
-      break;
+	switch(message) 
+	{
+		case 0:
+		Serial.print("???Software Version ");
+		Serial.print(SOFTWARE_VER);
+		Serial.println("***");
+		break;
       
-      case 1:
-      Serial.println("???Air Start!***");
-      break;
+		case 1:
+		Serial.println("???Air Start!***");
+		break;
       
-      case 2:
-      Serial.println("???Ground Start!***");
-      break;      
+		case 2:
+		Serial.println("???Ground Start!***");
+		break;      
       
-      case 3:
-      Serial.println("???Enabling Magneto...***");
-      break;         
+		case 3:
+		Serial.println("???Enabling Magneto...***");
+		break;  
+	  
+		case 4:
+		Serial.println("???Enabling Pressure Altitude...***");
+		break;         
+	  
+		case 5:
+		Serial.println("???Air Start complete");	
+		break;     
+	  
+		case 6:
+		Serial.println("???Ground Start complete");	
+		break;
      
-      case 10:
-      BAD_Checksum++;
-      Serial.print("???GPS Bad Checksum: "); 
-      Serial.print(BAD_Checksum);
-      Serial.println("...***");
-      break;
+		case 10:
+		BAD_Checksum++;
+		Serial.print("???GPS Bad Checksum: "); 
+		Serial.print(BAD_Checksum);
+		Serial.println("...***");
+		break;
       
-      default:
-      Serial.println("???Invalid debug ID...***");
-      break;
+		default:
+		Serial.println("???Invalid debug ID...***");
+		break;
    
-   }
-  #endif
+	}
+	#endif
   
 }
    
@@ -547,4 +658,12 @@ EEPROM memory map
 13 0x0D		..	
 14 0x0E		Unused
 15 0x0F		..
+16 0x10		Ground Pressure
+17 0x11		..
+18 0x12		..
+19 0x13		..
+20 0x14		Ground Temp
+21 0x15		..
+22 0x16		Ground Altitude
+23 0x17		..
 */
