@@ -23,7 +23,7 @@
 #define GPS_PROTOCOL 1    // 1 - Ublox,  2 - EM406,  3 - NMEA    We have only tested with Ublox
 
 // Enable Air Start uses Remove Before Fly flag - connection to pin 6 on ArduPilot 
-#define ENABLE_AIR_START 1  //  1 if using airstart/groundstart signaling, 0 if not
+#define ENABLE_AIR_START 0  //  1 if using airstart/groundstart signaling, 0 if not
 #define GROUNDSTART_PIN 8    //  Pin number used for ground start signal (recommend 10 on v1 and 8 on v2 hardware)
 
 /*Min Speed Filter for Yaw drift Correction*/
@@ -41,7 +41,7 @@
 #define PRINT_GPS 1     //Will print GPS data
 
 // *** NOTE!   To use ArduIMU with ArduPilot you must select binary output messages
-#define PRINT_BINARY 1   //Will print binary message and suppress ASCII messages (above)
+#define PRINT_BINARY 0   //Will print binary message and suppress ASCII messages (above)
 
 // *** NOTE!   Performance reporting is only supported for Ublox.  Set to 0 for others
 #define PERFORMANCE_REPORTING 1  //Will include performance reports in the binary output ~ 1/2 min
