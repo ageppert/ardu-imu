@@ -40,7 +40,7 @@
 #define PRINT_EULER 0   //Will print the Euler angles Roll, Pitch and Yaw
 #define PRINT_GPS 1     //Will print GPS data
 
-// *** NOTE!   To use ArduIMU with ArduPilot you must select binary output messages
+// *** NOTE!   To use ArduIMU with ArduPilot you must select binary output messages (change to 1 here)
 #define PRINT_BINARY 0   //Will print binary message and suppress ASCII messages (above)
 
 // *** NOTE!   Performance reporting is only supported for Ublox.  Set to 0 for others
