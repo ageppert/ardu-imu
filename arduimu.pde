@@ -526,7 +526,7 @@ void startup_ground(void)
 		eeprom_write_word((uint16_t *)	(y*2+2), store);	
 	}
 
-	while (gps_fix_count > 0) {
+	while (gps_fix_count > 0 && USE_BAROMETER) {
 		decode_gps();
 //  Serial.print(gpsFix);
 //  Serial.print(", ");
