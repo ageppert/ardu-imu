@@ -1,4 +1,4 @@
-#if GPS_PROTOCOL == 1
+#if GPS_PROTOCOL == 3
 
 /****************************************************************
  * Here you have all the parsing stuff for uBlox

@@ -1,4 +1,4 @@
-#if GPS_PROTOCOL == 3
+#if GPS_PROTOCOL == 1
 
 //*********************************************************************************************
 //  You may need to insert parameters appropriate for your gps from this list into init_gps()
