@@ -115,7 +115,7 @@ void printdata(void)
 #else
 	//  This section outputs binary data messages
 	//  Conforms to new binary message standard (12/31/09)
-	byte IMU_buffer[20];
+	byte IMU_buffer[22];
 	int tempint;
 	int ck;
 	long templong;

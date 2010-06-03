@@ -20,7 +20,7 @@
 #define BOARD_VERSION 2 // 1 For V1 and 2 for V2
 
 // Ublox gps is recommended!
-#define GPS_PROTOCOL 1    // 1 - NMEA,  2 - EM406,  3 - Ublox    We have only tested with Ublox
+#define GPS_PROTOCOL 3    // 1 - NMEA,  2 - EM406,  3 - Ublox    We have only tested with Ublox
 
 // Enable Air Start uses Remove Before Fly flag - connection to pin 6 on ArduPilot 
 #define ENABLE_AIR_START 0  //  1 if using airstart/groundstart signaling, 0 if not
