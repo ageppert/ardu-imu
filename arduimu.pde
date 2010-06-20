@@ -293,6 +293,11 @@ void setup()
   debug_print("You are using Hardware Version 2...");
   #endif 
   
+ //Setup EM406 for SIRF binary mode at 38400bit/s
+  #if GPS_PROTOCOL == 2
+    init_gps();
+  #endif
+  
   //Serial.print("ArduIMU: v");
   //Serial.println(SOFTWARE_VER);
   debug_handler(0);//Printing version
