@@ -90,7 +90,7 @@ void printdata(void)
 			Serial.print(",LON:");
 			Serial.print(lon);
 			Serial.print(",ALT:");
-			Serial.print(alt_MSL/1000);    // meters
+			Serial.print(alt_MSL/100);    // meters
 			Serial.print(",COG:");
 			Serial.print((ground_course));
 			Serial.print(",SOG:");
@@ -158,7 +158,7 @@ void printdata(void)
 		IMU_buffer[12]=tempint&0xff;
 		IMU_buffer[13]=(tempint>>8)&0xff;
         
-		tempint=ground_course*100;   // course in degreees * 100 in 2 bytes
+		tempint=numSV*100;   // course in degreees * 100 in 2 bytes
 		IMU_buffer[14]=tempint&0xff;
 		IMU_buffer[15]=(tempint>>8)&0xff;
         
