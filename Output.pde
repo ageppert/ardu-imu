@@ -215,6 +215,7 @@ void printdata(void)
 #endif  
 }
 
+#if PERFORMANCE_REPORTING == 1
 void printPerfData(long time)
 {
 
@@ -308,6 +309,8 @@ void printPerfData(long time)
         
 
 }
+
+#endif
 
 
 long convert_to_dec(float x)
