@@ -1,7 +1,8 @@
 // Released under Creative Commons License 
-// Code by Jordi Munoz and William Premerlani, Supported by Chris Anderson (Wired) and Nathan Sindle (SparkFun).
+// Code by Jordi Munoz and William Premerlani, Supported by Chris Anderson and Doug Weibel
 // Version 1.0 for flat board updated by Doug Weibel and Jose Julio
 // Version 1.7 includes support for SCP1000 absolute pressure sensor
+// Version 1.8 uses DIYDrones GPS, FastSerial, and Compass libraries
 
 // Axis definition: X axis pointing forward, Y axis pointing to the right and Z axis pointing down.
 // Positive pitch : nose up
@@ -10,6 +11,9 @@
 
 #include <avr/eeprom.h>
 #include <Wire.h>
+#include <FastSerial.h>		// ArduPilot Fast Serial Library
+#include <AP_GPS.h>			// ArduPilot GPS library
+#include <AP_Compass.h>	// ArduPilot Mega Magnetometer Library
 
 //**********************************************************************
 //  This section contains USER PARAMETERS !!!
@@ -19,25 +23,25 @@
 // *** NOTE!   Hardware version - Can be used for v1 (daughterboards) or v2 (flat)
 #define BOARD_VERSION 2 // 1 For V1 and 2 for V2
 
-// Ublox gps is recommended!
-#define GPS_PROTOCOL 4    // 1 - NMEA,  2 - EM406,  3 - Ublox, 4 -- MediaTek  
+// GPS Type Selection - Note Ublox or MediaTek is recommended.  Support for NMEA is limited.
+#define GPS_PROTOCOL 2    // 1 - NMEA,  2 - EM406,  3 - Ublox, 4 -- MediaTek  
 
 // Enable Air Start uses Remove Before Fly flag - connection to pin 6 on ArduPilot 
 #define ENABLE_AIR_START 0  //  1 if using airstart/groundstart signaling, 0 if not
 #define GROUNDSTART_PIN 8    //  Pin number used for ground start signal (recommend 10 on v1 and 8 on v2 hardware)
 
 /*Min Speed Filter for Yaw drift Correction*/
-#define SPEEDFILT 2 // >1 use min speed filter for yaw drift cancellation, 0=do not use speed filter
+#define SPEEDFILT 2 // >1 use min speed filter for yaw drift cancellation (m/s), 0=do not use speed filter
 
 /*For debugging propurses*/
-#define PRINT_DEBUG 0   //Will print Debug messages
+#define PRINT_DEBUG 1   //Will print Debug messages
 
 //OUTPUTMODE=1 will print the corrected data, 0 will print uncorrected data of the gyros (with drift), 2 will print accelerometer only data
 #define OUTPUTMODE 1
 
 #define PRINT_DCM 0     //Will print the whole direction cosine matrix
 #define PRINT_ANALOGS 0 //Will print the analog raw data
-#define PRINT_EULER 0   //Will print the Euler angles Roll, Pitch and Yaw
+#define PRINT_EULER 1   //Will print the Euler angles Roll, Pitch and Yaw
 #define PRINT_GPS 1     //Will print GPS data
 
 // *** NOTE!   To use ArduIMU with ArduPilot you must select binary output messages (change to 1 here)
@@ -47,7 +51,11 @@
 #define PERFORMANCE_REPORTING 1  //Will include performance reports in the binary output ~ 1/2 min
 
 /* Support for optional magnetometer (1 enabled, 0 dissabled) */
-#define USE_MAGNETOMETER 0 // use 1 if you want to make yaw gyro drift corrections using the optional magnetometer                   
+#define USE_MAGNETOMETER 0 // use 1 if you want to make yaw gyro drift corrections using the optional magnetometer   
+ 
+// Local magnetic declination
+// I use this web : http://www.ngdc.noaa.gov/geomagmodels/Declination.jsp
+#define MAGNETIC_DECLINATION -6.0    // corrects magnetic bearing to true north          
 
 /* Support for optional barometer (1 enabled, 0 dissabled) */
 #define USE_BAROMETER 0 	// use 1 if you want to get altitude using the optional absolute pressure sensor                  
@@ -57,7 +65,21 @@
 //  End of user parameters
 //**********************************************************************
 
-#define SOFTWARE_VER "1.7"
+#define SOFTWARE_VER "1.8"
+
+// GPS Selection
+FastSerialPort0(Serial);		// Instantiate the fast serial driver
+#if   GPS_PROTOCOL == 1
+AP_GPS_NMEA		GPS(&Serial);
+#elif GPS_PROTOCOL == 2
+AP_GPS_406		GPS(&Serial);
+#elif GPS_PROTOCOL == 3
+AP_GPS_UBLOX	GPS(&Serial);
+#elif GPS_PROTOCOL == 4
+AP_GPS_MTK		GPS(&Serial);
+#else
+# error Must define GPS_PROTOCOL with a valid value.
+#endif
 
 // ADC : Voltage reference 3.3v / 10bits(1024 steps) => 3.22mV/ADC step
 // ADXL335 Sensitivity(from datasheet) => 330mV/g, 3.22mV/ADC step => 330/3.22 = 102.48
@@ -83,9 +105,6 @@
 //#define Kp_YAW 2.5      //High yaw drift correction gain - use with caution!
 #define Ki_YAW 0.00005
 
-/*UBLOX Maximum payload length*/
-#define UBX_MAXPAYLOAD 56
-
 #define ADC_WARM_CYCLES 75
 
 #define FALSE 0
@@ -109,12 +128,6 @@ float Omega_Vector[3]= {0,0,0}; //Corrected Gyro_Vector data
 float Omega_P[3]= {0,0,0};//Omega Proportional correction
 float Omega_I[3]= {0,0,0};//Omega Integrator
 float Omega[3]= {0,0,0};
-
-//Magnetometer variables
-int magnetom_x;
-int magnetom_y;
-int magnetom_z;
-float MAG_Heading;
 
 // Euler angles
 float roll;
@@ -140,7 +153,6 @@ float DCM_Matrix[3][3]= {
 }; 
 float Update_Matrix[3][3]={{0,1,2},{3,4,5},{6,7,8}}; //Gyros here
 
-
 float Temporary_Matrix[3][3]={
   {
     0,0,0  }
@@ -150,50 +162,8 @@ float Temporary_Matrix[3][3]={
     0,0,0  }
 };
  
-//GPS 
-
-//GPS stuff
-union long_union {
-	int32_t dword;
-	uint8_t  byte[4];
-} longUnion;
-
-union int_union {
-	int16_t word;
-	uint8_t  byte[2];
-} intUnion;
-
-/*Flight GPS variables*/
-int gpsFix=1; //This variable store the status of the GPS
-int gpsFixnew=0; //used to flag when new gps data received - used for binary output message flags
+// Startup GPS variables
 int gps_fix_count = 5;		//used to count 5 good fixes at ground startup
-long lat=0; // store the Latitude from the gps to pass to output
-long lon=0; // Store the Longitude from the gps to pass to output
-long alt_MSL=0; //This is the altitude in millimeters
-long iTOW=0; //GPS Millisecond Time of Week
-long alt=0;  //Height above Ellipsoid in millimeters
-float speed_3d=0; //Speed (3-D)
-float ground_speed=0;// This is the velocity your "plane" is traveling in meters for second, 1Meters/Second= 3.6Km/H = 1.944 knots
-float ground_course=90;//This is the runaway direction of you "plane" in degrees
-float gc_offset = 0; // Force yaw output to ground course when fresh data available (only implemented for ublox&binary message)
-byte numSV=0; //Number of Sats used. 
-float ecefVZ=0; //Vertical Speed in m/s
-unsigned long GPS_timer=0;
-
-#if GPS_PROTOCOL == 3
-// GPS UBLOX
-byte ck_a=0;    // Packet checksum
-byte ck_b=0;
-byte UBX_step=0;
-byte UBX_class=0;
-byte UBX_id=0;
-byte UBX_payload_length_hi=0;
-byte UBX_payload_length_lo=0;
-byte UBX_payload_counter=0;
-byte UBX_buffer[UBX_MAXPAYLOAD];
-byte UBX_ck_a=0;
-byte UBX_ck_b=0;
-#endif
 
 //ADC variables
 volatile uint8_t MuxSel=0;
@@ -221,10 +191,6 @@ volatile uint8_t analog_count[8];
  byte adc_constraints = 0;
  byte renorm_sqrt_count = 0;
  byte renorm_blowup_count = 0;
- byte gps_payload_error_count = 0;
- byte gps_checksum_error_count = 0;
- byte gps_pos_fix_count = 0;
- byte gps_nav_fix_count = 0;
  byte gps_messages_sent = 0;
  long perf_mon_timer = 0;
  #endif
@@ -262,15 +228,15 @@ int temperature = 0;
 unsigned long press = 0;
 unsigned long press_filt = 0;
 unsigned long press_gnd = 0;
-long ground_alt = 0;				// Ground altitude in millimeters
-long press_alt = 0;					// Pressure altitude in millimeters
+long ground_alt = 0;				// Ground altitude in centimeters
+long press_alt = 0;					// Pressure altitude in centimeters
 
 #endif
 
 //*****************************************************************************************
 void setup()
 { 
-  Serial.begin(38400);
+  Serial.begin(38400, 128, 16);
   pinMode(2,OUTPUT); //Serial Mux
   digitalWrite(2,HIGH); //Serial Mux
   pinMode(5,OUTPUT); //Red LED
@@ -279,6 +245,17 @@ void setup()
   pinMode(GROUNDSTART_PIN,INPUT);  // Remove Before Fly flag (pin 6 on ArduPilot)
   digitalWrite(GROUNDSTART_PIN,HIGH);
 
+  digitalWrite(5,HIGH);
+  delay(500);
+  digitalWrite(6,HIGH);
+  delay(500);
+  digitalWrite(7,HIGH);
+  delay(500);
+  digitalWrite(5,LOW);
+  delay(500);
+  digitalWrite(6,LOW);
+  delay(500);
+  digitalWrite(7,LOW);
   
   Analog_Reference(EXTERNAL);//Using external analog reference
   Analog_Init();
@@ -293,22 +270,14 @@ void setup()
   debug_print("You are using Hardware Version 2...");
   #endif 
   
- //Setup EM406 for SIRF binary mode at 38400bit/s
-  #if GPS_PROTOCOL == 2
-    init_gps();
-  #endif
+  GPS.init();			// GPS Initialization
   
-  //Serial.print("ArduIMU: v");
-  //Serial.println(SOFTWARE_VER);
-  debug_handler(0);//Printing version
+  debug_handler(0);		//Printing version
   
-    #if USE_MAGNETOMETER==1
+	#if MAGNETOMETER == 1
+      AP_Compass.Init();	// I2C initialization
       debug_handler(3);
-      I2C_Init();
-      delay(100);
-      // Magnetometer initialization
-      Compass_Init();
-    #endif
+	#endif
   
   // SETUP FOR SCP1000_D11
     #if USE_BAROMETER==1
@@ -386,7 +355,7 @@ void loop() //Main Loop
 		// and balances the processing load across main loop cycles.
 		switch (cycleCount) {
 			case(0):
-				decode_gps();
+				GPS.update();
 				break;
 				
 			case(1):
@@ -405,8 +374,8 @@ void loop() //Main Loop
 				
 			case(3):
 				#if USE_MAGNETOMETER==1
-					Read_Compass();    // Read I2C magnetometer
-					Compass_Heading(); // Calculate magnetic heading  
+				AP_Compass.Read();     // Read magnetometer
+				AP_Compass.Calculate(roll,pitch);  // Calculate heading 
 				#endif
 				break;
 			
@@ -424,14 +393,14 @@ void loop() //Main Loop
 				}
       
 				// YAW drift correction indication
-				if(ground_speed<SPEEDFILT) {
+				if(GPS.ground_speed<SPEEDFILT*100) {
 					digitalWrite(7,HIGH);    //  Turn on yellow LED if speed too slow and yaw correction supressed
 				} else {
 					digitalWrite(7,LOW);
 				}
       
 				// GPS Fix indication
-				if(gpsFix==0) {  // yep its backwards 0 means a good fix in GPS world!
+				if(GPS.fix==1) {  
 					digitalWrite(6,HIGH);  //Turn Blue LED when gps is fixed. 
 				} else {
 					digitalWrite(6,LOW);
@@ -532,24 +501,24 @@ void startup_ground(void)
 	}
 
 	while (gps_fix_count > 0 && USE_BAROMETER) {
-		decode_gps();
+		GPS.update();
 //  Serial.print(gpsFix);
 //  Serial.print(", ");
 //  Serial.println(gpsFixnew);
-		if (gpsFix == 0 && gpsFixnew == 1) {
-			gpsFixnew = 0;
+		if (GPS.fix == 1 && GPS.new_data == 1) {
+			GPS.new_data = 0;
 			gps_fix_count--;
 		}
 	}
 #if USE_BAROMETER==1
 	press_filt = press_gnd;
-	ground_alt = alt_MSL;
+	ground_alt = GPS.altitude;
 	eeprom_busy_wait();
 	eeprom_write_dword((uint32_t *)0x10, press_gnd);
 	eeprom_busy_wait();
 	eeprom_write_word((uint16_t *)0x14, temperature);
 	eeprom_busy_wait();
-	eeprom_write_word((uint16_t *)0x16, (ground_alt/1000));
+	eeprom_write_word((uint16_t *)0x16, (ground_alt/100));
 #endif	
 	groundstartDone = true;
 	debug_handler(6);
@@ -575,7 +544,7 @@ void startup_air(void)
 	temperature = eeprom_read_word((uint16_t *) 0x14);
 	eeprom_busy_wait();
 	ground_alt = eeprom_read_word((uint16_t *) 0x16);
-	ground_alt *= 1000;
+	ground_alt *= 100;
 #endif	
       Serial.println("***Air Start complete");
 }    

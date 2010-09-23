@@ -30,7 +30,7 @@ void Normalize(void)
     Serial.print (",ERR:");
     Serial.print (error);
     Serial.print (",TOW:");
-    Serial.print (iTOW);  
+    Serial.print (GPS.time);  
     Serial.println("***");    
 #endif
   } else {
@@ -44,7 +44,7 @@ void Normalize(void)
     Serial.print (",ERR:");
     Serial.print (error);
     Serial.print (",TOW:");
-    Serial.print (iTOW);  
+    Serial.print (GPS.time);  
     Serial.println("***");    
 #endif
   }
@@ -64,7 +64,7 @@ void Normalize(void)
     Serial.print (",ERR:");
     Serial.print (error);
     Serial.print (",TOW:");
-    Serial.print (iTOW);  
+    Serial.print (GPS.time);  
     Serial.println("***");    
 #endif
   } else {
@@ -78,7 +78,7 @@ void Normalize(void)
     Serial.print (",ERR:");
     Serial.print (error);
     Serial.print (",TOW:");
-    Serial.print (iTOW);  
+    Serial.print (GPS.time);  
     Serial.println("***");    
 #endif
   }
@@ -98,7 +98,7 @@ void Normalize(void)
     Serial.print (",ERR:");
     Serial.print (error);
     Serial.print (",TOW:");
-    Serial.print (iTOW);  
+    Serial.print (GPS.time);  
     Serial.println("***");    
 #endif
   } else {
@@ -110,7 +110,7 @@ void Normalize(void)
     Serial.print("???PRB:3,RNM:");
     Serial.print (renorm);
     Serial.print (",TOW:");
-    Serial.print (iTOW);  
+    Serial.print (GPS.time);  
     Serial.println("***");    
 #endif
   }
@@ -168,9 +168,7 @@ void Drift_correction(void)
   
   #if USE_MAGNETOMETER==1 
     // We make the gyro YAW drift correction based on compass magnetic heading
-    mag_heading_x = cos(MAG_Heading);
-    mag_heading_y = sin(MAG_Heading);
-    errorCourse=(DCM_Matrix[0][0]*mag_heading_y) - (DCM_Matrix[1][0]*mag_heading_x);  //Calculating YAW error
+    errorCourse=(DCM_Matrix[0][0]*AP_Compass.Heading_Y) - (DCM_Matrix[1][0]*AP_Compass.Heading_X);  //Calculating YAW error
     Vector_Scale(errorYaw,&DCM_Matrix[2][0],errorCourse); //Applys the yaw correction to the XYZ rotation of the aircraft, depeding the position.
     
     Vector_Scale(&Scaled_Omega_P[0],&errorYaw[0],Kp_YAW);
@@ -179,10 +177,10 @@ void Drift_correction(void)
     Vector_Scale(&Scaled_Omega_I[0],&errorYaw[0],Ki_YAW);
     Vector_Add(Omega_I,Omega_I,Scaled_Omega_I);//adding integrator to the Omega_I   
   #else  // Use GPS Ground course to correct yaw gyro drift
-  if(ground_speed>=SPEEDFILT)
+  if(GPS.ground_speed>=SPEEDFILT*100)		// Ground speed from GPS is in m/s
   {
-    COGX = cos(ToRad(ground_course));
-    COGY = sin(ToRad(ground_course));
+	COGX = cos(ToRad(GPS.ground_course/100.0));
+	COGY = sin(ToRad(GPS.ground_course/100.0));
     errorCourse=(DCM_Matrix[0][0]*COGY) - (DCM_Matrix[1][0]*COGX);  //Calculating YAW error
     Vector_Scale(errorYaw,&DCM_Matrix[2][0],errorCourse); //Applys the yaw correction to the XYZ rotation of the aircraft, depeding the position.
   
@@ -202,7 +200,7 @@ void Drift_correction(void)
     Serial.print (ToDeg(Integrator_magnitude));
 
     Serial.print (",TOW:");
-    Serial.print (iTOW);  
+    Serial.print (GPS.time);  
     Serial.println("***");    
 #endif
   }
@@ -212,8 +210,8 @@ void Drift_correction(void)
 /**************************************************/
 void Accel_adjust(void)
 {
- Accel_Vector[1] += Accel_Scale(speed_3d*Omega[2]);  // Centrifugal force on Acc_y = GPS_speed*GyroZ
- Accel_Vector[2] -= Accel_Scale(speed_3d*Omega[1]);  // Centrifugal force on Acc_z = GPS_speed*GyroY 
+ Accel_Vector[1] += Accel_Scale((GPS.ground_speed/100)*Omega[2]);  // Centrifugal force on Acc_y = GPS ground speed (m/s) * GyroZ
+ Accel_Vector[2] -= Accel_Scale((GPS.ground_speed/100)*Omega[1]);  // Centrifugal force on Acc_z = GPS ground speed (m/s) * GyroY 
 }
 /**************************************************/
 

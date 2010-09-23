@@ -36,7 +36,7 @@ float read_adc(int select)
     Serial.print("!!!ADC:1,VAL:");
     Serial.print (temp);
     Serial.print (",TOW:");
-    Serial.print (iTOW);  
+    Serial.print (GPS.time);  
     Serial.println("***");
 #endif
 #if PERFORMANCE_REPORTING == 1
@@ -51,7 +51,7 @@ float read_adc(int select)
     Serial.print("!!!ADC:2,VAL:");
     Serial.print (temp);
     Serial.print (",TOW:");
-    Serial.print (iTOW);  
+    Serial.print (GPS.time);  
     Serial.println("***");
 #endif    
 #if PERFORMANCE_REPORTING == 1

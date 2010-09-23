@@ -2,7 +2,7 @@
 /* Based on code by Chris Barnes February 2010 */
 /* Based on code by Jose Julio */
 
-/* ATTENTION: SCP1000 is a 3v3 device */
+/* ATTENTION: SCP1000 is a 3v device */
 
 #if USE_BAROMETER == 1
 void setup_scp()
@@ -43,7 +43,9 @@ void alti(void)
 	double x;
 	double p = (double)press_gnd/(double)press;
 	double temp = (float)temperature/20.f + 273.15f;
-	x = log(p) * temp * 29271.267f;
+	x = log(p) * temp * 2927.1267f;
+	//x = log(p) * temp * 29.271267 * 100;
+	//x = log(p) * temp * 29271.267f;
 	//x = log(p) * temp * 29.271267 * 1000;
 	press_alt = x + ground_alt;
 	//  Need to add comments for theory.....
