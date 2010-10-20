@@ -13,7 +13,7 @@
 #include <Wire.h>
 #include <FastSerial.h>		// ArduPilot Fast Serial Library
 #include <AP_GPS.h>			// ArduPilot GPS library
-#include <AP_Compass.h>	// ArduPilot Mega Magnetometer Library
+#include <APM_Compass.h>	// ArduPilot Mega Magnetometer Library
 
 //**********************************************************************
 //  This section contains USER PARAMETERS !!!
@@ -23,8 +23,10 @@
 // *** NOTE!   Hardware version - Can be used for v1 (daughterboards) or v2 (flat)
 #define BOARD_VERSION 2 // 1 For V1 and 2 for V2
 
+#define GPS_CONNECTION 0 // 0 for GPS pins, 1 for programming pins
+
 // GPS Type Selection - Note Ublox or MediaTek is recommended.  Support for NMEA is limited.
-#define GPS_PROTOCOL 2    // 1 - NMEA,  2 - EM406,  3 - Ublox, 4 -- MediaTek  
+#define GPS_PROTOCOL 1    // 1 - NMEA,  2 - EM406,  3 - Ublox, 4 -- MediaTek  
 
 // Enable Air Start uses Remove Before Fly flag - connection to pin 6 on ArduPilot 
 #define ENABLE_AIR_START 0  //  1 if using airstart/groundstart signaling, 0 if not
@@ -45,7 +47,7 @@
 #define PRINT_GPS 1     //Will print GPS data
 
 // *** NOTE!   To use ArduIMU with ArduPilot you must select binary output messages (change to 1 here)
-#define PRINT_BINARY 0   //Will print binary message and suppress ASCII messages (above)
+#define PRINT_BINARY 1  //Will print binary message and suppress ASCII messages (above)
 
 // *** NOTE!   Performance reporting is only supported for Ublox.  Set to 0 for others
 #define PERFORMANCE_REPORTING 1  //Will include performance reports in the binary output ~ 1/2 min
@@ -65,7 +67,7 @@
 //  End of user parameters
 //**********************************************************************
 
-#define SOFTWARE_VER "1.8"
+#define SOFTWARE_VER "1.8.1"
 
 // GPS Selection
 FastSerialPort0(Serial);		// Instantiate the fast serial driver
@@ -133,6 +135,8 @@ float Omega[3]= {0,0,0};
 float roll;
 float pitch;
 float yaw;
+
+int toggleMode=0;
 
 float errorRollPitch[3]= {0,0,0}; 
 float errorYaw[3]= {0,0,0};
@@ -238,7 +242,12 @@ void setup()
 { 
   Serial.begin(38400, 128, 16);
   pinMode(2,OUTPUT); //Serial Mux
-  digitalWrite(2,HIGH); //Serial Mux
+  if (GPS_CONNECTION == 0){
+    digitalWrite(2,HIGH); //Serial Mux
+  } else {
+    digitalWrite(2,LOW); //Serial Mux
+  }
+
   pinMode(5,OUTPUT); //Red LED
   pinMode(6,OUTPUT); // Blue LED
   pinMode(7,OUTPUT); // Yellow LED
@@ -274,10 +283,10 @@ void setup()
   
   debug_handler(0);		//Printing version
   
-	#if MAGNETOMETER == 1
-      AP_Compass.Init();	// I2C initialization
+  #if USE_MAGNETOMETER == 1
+      APM_Compass.Init();	// I2C initialization
       debug_handler(3);
-	#endif
+  #endif
   
   // SETUP FOR SCP1000_D11
     #if USE_BAROMETER==1
@@ -374,8 +383,8 @@ void loop() //Main Loop
 				
 			case(3):
 				#if USE_MAGNETOMETER==1
-				AP_Compass.Read();     // Read magnetometer
-				AP_Compass.Calculate(roll,pitch);  // Calculate heading 
+				APM_Compass.Read();     // Read magnetometer
+				APM_Compass.Calculate(roll,pitch);  // Calculate heading 
 				#endif
 				break;
 			
@@ -400,10 +409,26 @@ void loop() //Main Loop
 				}
       
 				// GPS Fix indication
-				if(GPS.fix==1) {  
-					digitalWrite(6,HIGH);  //Turn Blue LED when gps is fixed. 
-				} else {
-					digitalWrite(6,LOW);
+                                switch (GPS.status()) {
+                                        case(2):
+					      digitalWrite(6,HIGH);  //Turn Blue LED when gps is fixed. 
+                                              break;
+                                              
+                                        case(1):
+                                              if (GPS.valid_read == true){
+                                                    toggleMode = abs(toggleMode-1); // Toggle blue light on and off to indicate NMEA sentences exist, but no GPS fix lock
+                                                    if (toggleMode==0){
+                                                          digitalWrite(6, LOW); // Blue light off
+                                                    } else {
+                                                          digitalWrite(6, HIGH); // Blue light on
+                                                    }
+                                                    GPS.valid_read = false;
+                                              }
+                                              break;
+                                              
+                                        default:
+                                              digitalWrite(6,LOW);
+                                              break;
 				}
 				break;
 				
