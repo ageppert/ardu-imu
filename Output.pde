@@ -83,22 +83,24 @@ void printdata(void)
 	#endif
       
 	#if PRINT_GPS == 1
-		if(GPS.new_data==1) {
-			GPS.new_data=0;
+		if(gpsFixnew==1) {
+			gpsFixnew=0;
 			Serial.print("LAT:");
-			Serial.print(GPS.latitude);
+			Serial.print(lat);
 			Serial.print(",LON:");
-			Serial.print(GPS.longitude);
+			Serial.print(lon);
 			Serial.print(",ALT:");
-			Serial.print(GPS.altitude/100);    // meters
+			Serial.print(alt_MSL/100);    // meters
 			Serial.print(",COG:");
-			Serial.print(GPS.ground_course/100);	// degrees
+			Serial.print((ground_course));
 			Serial.print(",SOG:");
-			Serial.print(GPS.ground_speed/100);
+			Serial.print(ground_speed);
 			Serial.print(",FIX:");
-			Serial.print((int)GPS.fix);				// 1 = good fix
+			Serial.print((int)gpsFix);
+			Serial.print(",EVZ:"); //Vertical Speed
+			Serial.print(ecefVZ);
 			Serial.print(",SAT:"); 
-			Serial.print((int)GPS.num_sats);
+			Serial.print((int)numSV);
 			Serial.print (",");
 			#if PERFORMANCE_REPORTING == 1
 				gps_messages_sent++;
@@ -107,7 +109,7 @@ void printdata(void)
 	#endif
       
 	Serial.print("TOW:");
-	Serial.print(GPS.time);
+	Serial.print(iTOW);
 	Serial.println("***");    
 
 #else
@@ -121,49 +123,49 @@ void printdata(void)
 	byte IMU_ck_b=0;
       
 	//  This section outputs the gps binary message when new gps data is available
-	if(GPS.new_data==1) {
+	if(gpsFixnew==1) {
 		#if PERFORMANCE_REPORTING == 1
 			gps_messages_sent++;
 		#endif
-		GPS.new_data=0;
+		gpsFixnew=0;
 		Serial.print("DIYd");  // This is the message preamble
 		IMU_buffer[0]=0x13;
 		ck=19;
 		IMU_buffer[1] = 0x03;      
 
-		templong = GPS.longitude; //Longitude *10**7 in 4 bytes
+		templong = lon; //Longitude *10**7 in 4 bytes
 		IMU_buffer[2]=templong&0xff;
 		IMU_buffer[3]=(templong>>8)&0xff;
 		IMU_buffer[4]=(templong>>16)&0xff;
 		IMU_buffer[5]=(templong>>24)&0xff;
       
-		templong = GPS.latitude; //Latitude *10**7 in 4 bytes
+		templong = lat; //Latitude *10**7 in 4 bytes
 		IMU_buffer[6]=templong&0xff;
 		IMU_buffer[7]=(templong>>8)&0xff;
 		IMU_buffer[8]=(templong>>16)&0xff;
 		IMU_buffer[9]=(templong>>24)&0xff;
       
 		#if USE_BAROMETER==0
-			tempint=GPS.altitude / 100;   // Altitude MSL in meters * 10 in 2 bytes
+			tempint=alt_MSL / 100;   // Altitude MSL in meters * 10 in 2 bytes
 		#else
 			alti();
-			tempint = (press_alt * ALT_MIX + GPS.altitude * (100-ALT_MIX)) / 10000;	//Blended GPS and pressure altitude
+			tempint = (press_alt * ALT_MIX + alt_MSL * (100-ALT_MIX)) / 10000;	//Blended GPS and pressure altitude
 		#endif
 		IMU_buffer[10]=tempint&0xff;
 		IMU_buffer[11]=(tempint>>8)&0xff;
       
-		tempint=GPS.ground_speed;   // Speed in M/S * 100 in 2 bytes
+		tempint=speed_3d*100;   // Speed in M/S * 100 in 2 bytes
 		IMU_buffer[12]=tempint&0xff;
 		IMU_buffer[13]=(tempint>>8)&0xff;
         
-		tempint=GPS.ground_course;   // course in degreees * 100 in 2 bytes
+		tempint=numSV*100;   // course in degreees * 100 in 2 bytes
 		IMU_buffer[14]=tempint&0xff;
 		IMU_buffer[15]=(tempint>>8)&0xff;
         
-		IMU_buffer[16]=GPS.time&0xff;
-		IMU_buffer[17]=(GPS.time>>8)&0xff;
-		IMU_buffer[18]=(GPS.time>>16)&0xff;
-		IMU_buffer[19]=(GPS.time>>24)&0xff;
+		IMU_buffer[16]=iTOW&0xff;
+		IMU_buffer[17]=(iTOW>>8)&0xff;
+		IMU_buffer[18]=(iTOW>>16)&0xff;
+		IMU_buffer[19]=(iTOW>>24)&0xff;
 
         	IMU_buffer[20]=(imu_health>>8)&0xff;
 
@@ -192,7 +194,7 @@ void printdata(void)
 		IMU_buffer[4]=tempint&0xff;
 		IMU_buffer[5]=(tempint>>8)&0xff;
       
-		templong=ToDeg(yaw)*100;  //Yaw (degrees) * 100 in 2 bytes
+		templong=(ToDeg(yaw)+gc_offset)*100;  //Yaw (degrees) * 100 in 2 bytes
 		if(templong>18000) templong -=36000;
 		if(templong<-18000) templong +=36000;
 		tempint = templong;
@@ -246,11 +248,11 @@ void printPerfData(long time)
         	IMU_buffer[11]=adc_constraints;
         	IMU_buffer[12]=renorm_sqrt_count;
         	IMU_buffer[13]=renorm_blowup_count;
-        	IMU_buffer[14]=0;								// gps_payload_error_count - We don't have access to this with GPS library
-        	IMU_buffer[15]=0;								// gps_checksum_error_count - We don't have access to this with GPS library
-        	IMU_buffer[16]=0;								// gps_pos_fix_count - We don't have access to this with GPS library
-        	IMU_buffer[17]=0;								// gps_nav_fix_count - We don't have access to this with GPS library
-        	IMU_buffer[18]=gps_messages_sent;				// This metric is equal to the number of gps fixes received
+        	IMU_buffer[14]=gps_payload_error_count;
+        	IMU_buffer[15]=gps_checksum_error_count;
+        	IMU_buffer[16]=gps_pos_fix_count;
+        	IMU_buffer[17]=gps_nav_fix_count;
+        	IMU_buffer[18]=gps_messages_sent;
 
       	for (int i=0;i<ck+2;i++) Serial.print (IMU_buffer[i]);  
       	for (int i=0;i<ck+2;i++) {
@@ -278,6 +280,14 @@ void printPerfData(long time)
     Serial.print(renorm_sqrt_count,DEC);
     Serial.print(",rbc:");
     Serial.print(renorm_blowup_count,DEC);
+    Serial.print(",gpe:");
+    Serial.print(gps_payload_error_count,DEC);
+    Serial.print(",gce:");
+    Serial.print(gps_checksum_error_count,DEC);
+    Serial.print(",gpf:");
+    Serial.print(gps_pos_fix_count,DEC);
+    Serial.print(",gnf:");
+    Serial.print(gps_nav_fix_count,DEC);
     Serial.print(",gms:");
     Serial.print(gps_messages_sent,DEC);
     Serial.print(",imu:");
@@ -291,8 +301,13 @@ void printPerfData(long time)
         adc_constraints = 0;
         renorm_sqrt_count = 0;
         renorm_blowup_count = 0;
+        gps_payload_error_count = 0;
+        gps_checksum_error_count = 0;
+        gps_pos_fix_count = 0;
+        gps_nav_fix_count = 0;
         gps_messages_sent = 0;
         
+
 }
 
 #endif
