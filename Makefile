@@ -4,4 +4,4 @@
 
 BOARD	=	atmega328
 
-include ../Arduino.mk
+include ../libraries/AP_Common/Arduino.mk
