@@ -58,16 +58,29 @@ void printdata(void)
 		Serial.print (",");
 	#endif
       
-	#if USE_MAGNETOMETER == 1
+	#if PRINT_MAGNETOMETER == 1
+                #if BOARD_VERSION < 3
 		Serial.print("MGX:");
-		Serial.print(magnetom_x);
+		Serial.print(APM_Compass.Mag_X);
 		Serial.print (",MGY:");
-		Serial.print(magnetom_y);
+		Serial.print(APM_Compass.Mag_Y);
 		Serial.print (",MGZ:");
-		Serial.print(magnetom_z);
+		Serial.print(APM_Compass.Mag_Z);
 		Serial.print (",MGH:");
-		Serial.print(MAG_Heading);
+		Serial.print(ToDeg(APM_Compass.Heading));
 		Serial.print (",");
+                #endif
+                #if BOARD_VERSION == 3
+                Serial.print("MGX:");
+		Serial.print(mag_x);
+		Serial.print (",MGY:");
+		Serial.print(mag_y);
+		Serial.print (",MGZ:");
+		Serial.print(mag_z);
+		Serial.print (",MGH:");
+		Serial.print(ToDeg(Heading));
+		Serial.print (",");
+                #endif
 	#endif
       
 	#if USE_BAROMETER == 1

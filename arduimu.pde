@@ -3,6 +3,7 @@
 // Version 1.0 for flat board updated by Doug Weibel and Jose Julio
 // Version 1.7 includes support for SCP1000 absolute pressure sensor
 // Version 1.8 uses DIYDrones GPS, FastSerial, and Compass libraries
+// Version 1.9 Support for ArduIMU V3 Hardware with MPU6000 and HMC5883 magnetometer (SCP1000 absolute pressure sensor is not supported in this version)
 
 // Axis definition: X axis pointing forward, Y axis pointing to the right and Z axis pointing down.
 // Positive pitch : nose up
@@ -20,13 +21,17 @@
 //
 //**********************************************************************
 
-// *** NOTE!   Hardware version - Can be used for v1 (daughterboards) or v2 (flat)
-#define BOARD_VERSION 2 // 1 For V1 and 2 for V2
+// *** NOTE!   Hardware version - Can be used for v1 (daughterboards) , v2 (flat) or new v3 (MPU6000)
+#define BOARD_VERSION 3 // 1 For V1 and 2 for V2 and 3 for new V3
+
+#if BOARD_VERSION == 3
+#include "MPU6000.h"
+#endif
 
 #define GPS_CONNECTION 0 // 0 for GPS pins, 1 for programming pins
 
 // GPS Type Selection - Note Ublox or MediaTek is recommended.  Support for NMEA is limited.
-#define GPS_PROTOCOL 1    // 1 - NMEA,  2 - EM406,  3 - Ublox, 4 -- MediaTek  
+#define GPS_PROTOCOL 4    // 1 - NMEA,  2 - EM406,  3 - Ublox, 4 -- MediaTek  
 
 // Enable Air Start uses Remove Before Fly flag - connection to pin 6 on ArduPilot 
 #define ENABLE_AIR_START 0  //  1 if using airstart/groundstart signaling, 0 if not
@@ -44,20 +49,25 @@
 #define PRINT_DCM 0     //Will print the whole direction cosine matrix
 #define PRINT_ANALOGS 0 //Will print the analog raw data
 #define PRINT_EULER 1   //Will print the Euler angles Roll, Pitch and Yaw
-#define PRINT_GPS 1     //Will print GPS data
+#define PRINT_GPS 0     //Will print GPS data
+#define PRINT_MAGNETOMETER 0     //Will print Magnetometer data (if magnetometer is enabled)
 
 // *** NOTE!   To use ArduIMU with ArduPilot you must select binary output messages (change to 1 here)
-#define PRINT_BINARY 1  //Will print binary message and suppress ASCII messages (above)
+#define PRINT_BINARY 0  //Will print binary message and suppress ASCII messages (above)
 
 // *** NOTE!   Performance reporting is only supported for Ublox.  Set to 0 for others
 #define PERFORMANCE_REPORTING 1  //Will include performance reports in the binary output ~ 1/2 min
 
 /* Support for optional magnetometer (1 enabled, 0 dissabled) */
-#define USE_MAGNETOMETER 0 // use 1 if you want to make yaw gyro drift corrections using the optional magnetometer   
+#define USE_MAGNETOMETER 1 // use 1 if you want to make yaw gyro drift corrections using the optional magnetometer   
  
-// Local magnetic declination
+// Local magnetic declination (in degrees)
 // I use this web : http://www.ngdc.noaa.gov/geomagmodels/Declination.jsp
-#define MAGNETIC_DECLINATION -6.0    // corrects magnetic bearing to true north          
+#define MAGNETIC_DECLINATION -6.0    // corrects magnetic bearing to true north
+// Magnetometer OFFSETS (magnetometer calibration) (only for ArduIMU v3)
+#define MAG_OFFSET_X 0
+#define MAG_OFFSET_Y 0
+#define MAG_OFFSET_Z 0
 
 /* Support for optional barometer (1 enabled, 0 dissabled) */
 #define USE_BAROMETER 0 	// use 1 if you want to get altitude using the optional absolute pressure sensor                  
@@ -67,7 +77,7 @@
 //  End of user parameters
 //**********************************************************************
 
-#define SOFTWARE_VER "1.8.1"
+#define SOFTWARE_VER "1.9"
 
 // GPS Selection
 FastSerialPort0(Serial);		// Instantiate the fast serial driver
@@ -83,14 +93,19 @@ AP_GPS_MTK		GPS(&Serial);
 # error Must define GPS_PROTOCOL with a valid value.
 #endif
 
+#define ToRad(x) (x*0.01745329252)  // *pi/180
+#define ToDeg(x) (x*57.2957795131)  // *180/pi
+
+#if BOARD_VERSION < 3
+#define SERIAL_MUX_PIN 2
+#define RED_LED_PIN 5
+#define BLUE_LED_PIN 6
+#define YELLOW_LED_PIN 7
 // ADC : Voltage reference 3.3v / 10bits(1024 steps) => 3.22mV/ADC step
 // ADXL335 Sensitivity(from datasheet) => 330mV/g, 3.22mV/ADC step => 330/3.22 = 102.48
 // Tested value : 101
 #define GRAVITY 101 //this equivalent to 1G in the raw data coming from the accelerometer 
 #define Accel_Scale(x) x*(GRAVITY/9.81)//Scaling the raw data of the accel to actual acceleration in meters for seconds square
-
-#define ToRad(x) (x*0.01745329252)  // *pi/180
-#define ToDeg(x) (x*57.2957795131)  // *180/pi
 
 // LPR530 & LY530 Sensitivity (from datasheet) => 3.33mV/º/s, 3.22mV/ADC step => 1.03
 // Tested values : 0.96,0.96,0.94
@@ -100,6 +115,26 @@ AP_GPS_MTK		GPS(&Serial);
 #define Gyro_Scaled_X(x) x*ToRad(Gyro_Gain_X) //Return the scaled ADC raw data of the gyro in radians for second
 #define Gyro_Scaled_Y(x) x*ToRad(Gyro_Gain_Y) //Return the scaled ADC raw data of the gyro in radians for second
 #define Gyro_Scaled_Z(x) x*ToRad(Gyro_Gain_Z) //Return the scaled ADC raw data of the gyro in radians for second
+#endif
+
+#if BOARD_VERSION == 3
+#define SERIAL_MUX_PIN 7
+#define RED_LED_PIN 5
+#define BLUE_LED_PIN 6
+#define YELLOW_LED_PIN 5   // Yellow led is not used on ArduIMU v3
+// MPU6000 4g range => g = 4096
+#define GRAVITY 4096  // This equivalent to 1G in the raw data coming from the accelerometer 
+#define Accel_Scale(x) x*(GRAVITY/9.81)//Scaling the raw data of the accel to actual acceleration in meters for seconds square
+
+// MPU6000 sensibility  (theorical 0.0152 => 1/65.6LSB/deg/s at 500deg/s) (theorical 0.0305 => 1/32.8LSB/deg/s at 1000deg/s) ( 0.0609 => 1/16.4LSB/deg/s at 2000deg/s)
+#define Gyro_Gain_X 0.0609
+#define Gyro_Gain_Y 0.0609
+#define Gyro_Gain_Z 0.0609
+#define Gyro_Scaled_X(x) x*ToRad(Gyro_Gain_X) //Return the scaled ADC raw data of the gyro in radians for second
+#define Gyro_Scaled_Y(x) x*ToRad(Gyro_Gain_Y) //Return the scaled ADC raw data of the gyro in radians for second
+#define Gyro_Scaled_Z(x) x*ToRad(Gyro_Gain_Z) //Return the scaled ADC raw data of the gyro in radians for second
+#endif
+
 
 #define Kp_ROLLPITCH 0.015
 #define Ki_ROLLPITCH 0.000010
@@ -111,7 +146,6 @@ AP_GPS_MTK		GPS(&Serial);
 
 #define FALSE 0
 #define TRUE 1
-
 
 float G_Dt=0.02;    // Integration time (DCM algorithm)
 
@@ -186,6 +220,12 @@ volatile uint8_t analog_count[8];
   int SENSOR_SIGN[] = {1,-1,-1,1,-1,1,-1,-1,-1};
  #endif
  
+ #if BOARD_VERSION == 3
+  uint8_t sensors[6] = {0,1,2,3,4,5};  // For Hardware v3 (MPU6000)
+  int SENSOR_SIGN[] = {1,-1,-1,-1,1,1,-1,1,-1};
+ #endif
+ 
+ 
  // Performance Monitoring variables
  // Data collected and reported for ~1/2 minute intervals
  #if PERFORMANCE_REPORTING == 1
@@ -199,75 +239,57 @@ volatile uint8_t analog_count[8];
  long perf_mon_timer = 0;
  #endif
  unsigned int imu_health = 65012;
-
-//**********************************************************************
-//  This section contains SCP1000_D11 PARAMETERS !!!
-//********************************************************************** 
-#if USE_BAROMETER == 1
-#define SCP_MODE        (9)             // 9 = high speed mode, 10 = high resolution mode
-#define PRESSURE_ADDR   (0x11U)          // IIC address of the SCP1000
-// ************   #define START_ALTITUDE  (217U)           // default initial altitude in m above sea level 
-
-// When we have to manage data transfers via IIC directly we need to use the following addresses
-// IIC address of the SCP1000 device forms the Top 7 bits of the address with the R/W bit as the LSB
-#define READ_PRESSURE_ADDR    (PRESSURE_ADDR<<1 | 1)
-#define WRITE_PRESSURE_ADDR   (PRESSURE_ADDR<<1)
-
-// SCP1000 Register addresses
-#define SNS_ADDR_POPERATION     (0x03U)  // OPERATON register
-#define SNS_ADDR_PSTATUS        (0x07U)  // STATUS register
-#define SNS_ADDR_PPRESSURE      (0x80U)  // DATARD16 Register (pressure)
-#define SNS_ADDR_DATARD8	(0x7FU)  // DAYARD8 Register
-#define SNS_ADDR_PTEMP		(0x81U)	 // TEMPOUT Register (temperature)
-
-#ifndef TRUE
-#define TRUE          (0x01)
-#endif
-#ifndef FALSE
-#define FALSE         (0x00)
-#endif
-
-int temp_unfilt = 0;
-int temperature = 0;
-unsigned long press = 0;
-unsigned long press_filt = 0;
-unsigned long press_gnd = 0;
-long ground_alt = 0;				// Ground altitude in centimeters
-long press_alt = 0;					// Pressure altitude in centimeters
-
-#endif
-
+ 
+ #if USE_MAGNETOMETER==1
+ // Magnetometer variables definition
+ #if BOARD_VERSION < 3
+ APM_Compass_Class APM_Compass;
+ #endif
+ int mag_x;
+ int mag_y;
+ int mag_z;
+ int mag_offset[3];
+ float Heading;
+ float Heading_X;
+ float Heading_Y;
+ #endif
 //*****************************************************************************************
 void setup()
 { 
   Serial.begin(38400, 128, 16);
-  pinMode(2,OUTPUT); //Serial Mux
+  pinMode(SERIAL_MUX_PIN,OUTPUT); //Serial Mux
   if (GPS_CONNECTION == 0){
-    digitalWrite(2,HIGH); //Serial Mux
+    digitalWrite(SERIAL_MUX_PIN,HIGH); //Serial Mux
   } else {
-    digitalWrite(2,LOW); //Serial Mux
+    digitalWrite(SERIAL_MUX_PIN,LOW); //Serial Mux
   }
 
-  pinMode(5,OUTPUT); //Red LED
-  pinMode(6,OUTPUT); // Blue LED
-  pinMode(7,OUTPUT); // Yellow LED
+  pinMode(RED_LED_PIN,OUTPUT); //Red LED
+  pinMode(BLUE_LED_PIN,OUTPUT); // Blue LED
+  pinMode(YELLOW_LED_PIN,OUTPUT); // Yellow LED
   pinMode(GROUNDSTART_PIN,INPUT);  // Remove Before Fly flag (pin 6 on ArduPilot)
   digitalWrite(GROUNDSTART_PIN,HIGH);
-
-  digitalWrite(5,HIGH);
-  delay(500);
-  digitalWrite(6,HIGH);
-  delay(500);
-  digitalWrite(7,HIGH);
-  delay(500);
-  digitalWrite(5,LOW);
-  delay(500);
-  digitalWrite(6,LOW);
-  delay(500);
-  digitalWrite(7,LOW);
   
+  #if BOARD_VERSION == 3
+  MPU6000_Init();       // MPU6000 initialization
+  #endif
+  
+  digitalWrite(RED_LED_PIN,HIGH);
+  delay(500);
+  digitalWrite(BLUE_LED_PIN,HIGH);
+  delay(500);
+  digitalWrite(YELLOW_LED_PIN,HIGH);
+  delay(500);
+  digitalWrite(RED_LED_PIN,LOW);
+  delay(500);
+  digitalWrite(BLUE_LED_PIN,LOW);
+  delay(500);
+  digitalWrite(YELLOW_LED_PIN,LOW);
+  
+  #if BOARD_VERSION < 3
   Analog_Reference(EXTERNAL);//Using external analog reference
   Analog_Init();
+  #endif
   
   debug_print("Welcome...");
   
@@ -284,15 +306,16 @@ void setup()
   debug_handler(0);		//Printing version
   
   #if USE_MAGNETOMETER == 1
+    #if BOARD_VERSION < 3       // Support for old magnetometer (HMC5843) on ArduIMU v2
       APM_Compass.Init();	// I2C initialization
+      APM_Compass.SetOrientation(APM_COMPASS_COMPONENTS_UP_PINS_RIGHT);  // Orientation for magnetometer soldered to main board
+    #endif
+    #if BOARD_VERSION == 3
+      HMC5883_init();
+      HMC5883_set_offset(MAG_OFFSET_X,MAG_OFFSET_Y,MAG_OFFSET_Z);
+    #endif
       debug_handler(3);
   #endif
-  
-  // SETUP FOR SCP1000_D11
-    #if USE_BAROMETER==1
-		debug_handler(4);
-		setup_scp();
-	#endif
 
   if(ENABLE_AIR_START){
       debug_handler(1);
@@ -306,7 +329,7 @@ void setup()
   delay(250);
     
   Read_adc_raw();     // ADC initialization
-  timer=DIYmillis();
+  timer=millis();
   delay(20);
   
 }
@@ -342,6 +365,15 @@ void loop() //Main Loop
    
     Euler_angles();
     
+    //Serial.print(timer-timer_old);
+    //Serial.print("\t");
+    //Serial.print(ToDeg(roll));
+    //Serial.print("\t");
+    //Serial.print(ToDeg(pitch));
+    //Serial.print("\t");
+    //Serial.print(ToDeg(yaw));
+    //Serial.println();
+    
     #if PRINT_BINARY == 1
       printdata(); //Send info via serial
     #endif
@@ -353,7 +385,7 @@ void loop() //Main Loop
 #if PERFORMANCE_REPORTING == 1
       gyro_sat_count++;
 #endif
-      digitalWrite(5,HIGH);  
+      digitalWrite(RED_LED_PIN,HIGH);  
     }
     
 	cycleCount++;
@@ -374,17 +406,19 @@ void loop() //Main Loop
 				break;
 				
 			case(2):
-				#if USE_BAROMETER==1
-					ReadSCP1000();    // Read I2C absolute pressure sensor
-					press_filt = (press + 2l * press_filt) / 3l;		//Light filtering
-					//temperature = (temperature * 9 + temp_unfilt) / 10;    We will just use the ground temp for the altitude calculation
-				#endif
+				
 				break;
 				
 			case(3):
 				#if USE_MAGNETOMETER==1
-				APM_Compass.Read();     // Read magnetometer
-				APM_Compass.Calculate(roll,pitch);  // Calculate heading 
+                                  #if BOARD_VERSION < 3
+				    APM_Compass.Read();     // Read magnetometer
+				    APM_Compass.Calculate(roll,pitch);  // Calculate heading 
+                                  #endif
+                                  #if BOARD_VERSION == 3
+                                    HMC5883_read();                   // Read magnetometer
+                                    HMC5883_calculate(roll, pitch);   // Calculate heading 
+                                  #endif
 				#endif
 				break;
 			
@@ -392,48 +426,50 @@ void loop() //Main Loop
 				// Display Status on LEDs
 				// GYRO Saturation indication
 				if(gyro_sat>=1) {
-					digitalWrite(5,HIGH); //Turn Red LED when gyro is saturated. 
+					digitalWrite(RED_LED_PIN,HIGH); //Turn Red LED when gyro is saturated. 
 					if(gyro_sat>=8)  // keep the LED on for 8/10ths of a second
 						gyro_sat=0;
 					else
 						gyro_sat++;
 				} else {
-					digitalWrite(5,LOW);
+					digitalWrite(RED_LED_PIN,LOW);
 				}
       
 				// YAW drift correction indication
 				if(GPS.ground_speed<SPEEDFILT*100) {
-					digitalWrite(7,HIGH);    //  Turn on yellow LED if speed too slow and yaw correction supressed
+					digitalWrite(YELLOW_LED_PIN,HIGH);    //  Turn on yellow LED if speed too slow and yaw correction supressed
 				} else {
-					digitalWrite(7,LOW);
+					digitalWrite(YELLOW_LED_PIN,LOW);
 				}
       
 				// GPS Fix indication
                                 switch (GPS.status()) {
                                         case(2):
-					      digitalWrite(6,HIGH);  //Turn Blue LED when gps is fixed. 
+					      digitalWrite(BLUE_LED_PIN,HIGH);  //Turn Blue LED when gps is fixed. 
                                               break;
                                               
                                         case(1):
                                               if (GPS.valid_read == true){
                                                     toggleMode = abs(toggleMode-1); // Toggle blue light on and off to indicate NMEA sentences exist, but no GPS fix lock
                                                     if (toggleMode==0){
-                                                          digitalWrite(6, LOW); // Blue light off
+                                                          digitalWrite(BLUE_LED_PIN, LOW); // Blue light off
                                                     } else {
-                                                          digitalWrite(6, HIGH); // Blue light on
+                                                          digitalWrite(BLUE_LED_PIN, HIGH); // Blue light on
                                                     }
                                                     GPS.valid_read = false;
                                               }
                                               break;
                                               
                                         default:
-                                              digitalWrite(6,LOW);
+                                              digitalWrite(BLUE_LED_PIN,LOW);
                                               break;
 				}
 				break;
 				
 			case(5):
-				cycleCount = -1;		// Reset case counter, will be incremented to zero before switch statement
+                                
+				cycleCount = -1;
+		// Reset case counter, will be incremented to zero before switch statement
 				#if !PRINT_BINARY
 					printdata(); //Send info via serial
 				#endif
@@ -462,14 +498,14 @@ void startup_ground(void)
 	debug_handler(2);
 	for(int c=0; c<ADC_WARM_CYCLES; c++)
 	{ 
-		digitalWrite(7,LOW);
-		digitalWrite(6,HIGH);
-		digitalWrite(5,LOW);
+		digitalWrite(YELLOW_LED_PIN,LOW);
+		digitalWrite(BLUE_LED_PIN,HIGH);
+		digitalWrite(RED_LED_PIN,LOW);
 		delay(50);
 		Read_adc_raw();
-		digitalWrite(7,HIGH);
-		digitalWrite(6,LOW);
-		digitalWrite(5,HIGH);
+		digitalWrite(YELLOW_LED_PIN,HIGH);
+		digitalWrite(BLUE_LED_PIN,LOW);
+		digitalWrite(RED_LED_PIN,HIGH);
 		delay(50);
 	}
   
@@ -478,12 +514,6 @@ void startup_ground(void)
 	Read_adc_raw();
 	for(int y=0; y<=5; y++)   // Read first initial ADC values for offset.
 		AN_OFFSET[y]=AN[y];
-#if USE_BAROMETER==1
-	ReadSCP1000();
-	press_gnd = press;
-	temperature = temp_unfilt;
-	delay(20);
-#endif
 
 	for(int i=0;i<400;i++)    // We take some readings...
 	{
@@ -492,35 +522,35 @@ void startup_ground(void)
 			AN_OFFSET[y]=AN_OFFSET[y]*0.8 + AN[y]*0.2;
 		delay(20);
 		if(flashcount == 5) {
-			digitalWrite(7,LOW);
-			digitalWrite(6,HIGH);
-			digitalWrite(5,LOW);
+			digitalWrite(YELLOW_LED_PIN,LOW);
+			digitalWrite(BLUE_LED_PIN,HIGH);
+			digitalWrite(RED_LED_PIN,LOW);
 		}
 		if(flashcount >= 10) {
 			flashcount = 0;
-#if USE_BAROMETER==1
-			ReadSCP1000();
-			press_gnd = (press_gnd * 9l + press) / 10l;
-			temperature = (temperature * 9 + temp_unfilt) / 10;
 
-#endif
-			digitalWrite(7,HIGH);
-			digitalWrite(6,LOW);
-			digitalWrite(5,HIGH);
+			digitalWrite(YELLOW_LED_PIN,HIGH);
+			digitalWrite(BLUE_LED_PIN,LOW);
+			digitalWrite(RED_LED_PIN,HIGH);
 		}
 		flashcount++;
 		
         }
-	digitalWrite(5,LOW);
-	digitalWrite(6,LOW);
-	digitalWrite(7,LOW);
+	digitalWrite(RED_LED_PIN,LOW);
+	digitalWrite(BLUE_LED_PIN,LOW);
+	digitalWrite(YELLOW_LED_PIN,LOW);
 	
 	AN_OFFSET[5]-=GRAVITY*SENSOR_SIGN[5];
   
 	for(int y=0; y<=5; y++)
 	{
 		Serial.println(AN_OFFSET[y]);
+                #if BOARD_VERSION < 3
 		store = ((AN_OFFSET[y]-200.f)*100.0f);
+                #endif
+                #if BOARD_VERSION == 3
+                store = AN_OFFSET[y];
+                #endif
 		eeprom_busy_wait();
 		eeprom_write_word((uint16_t *)	(y*2+2), store);	
 	}
@@ -535,16 +565,7 @@ void startup_ground(void)
 			gps_fix_count--;
 		}
 	}
-#if USE_BAROMETER==1
-	press_filt = press_gnd;
-	ground_alt = GPS.altitude;
-	eeprom_busy_wait();
-	eeprom_write_dword((uint32_t *)0x10, press_gnd);
-	eeprom_busy_wait();
-	eeprom_write_word((uint16_t *)0x14, temperature);
-	eeprom_busy_wait();
-	eeprom_write_word((uint16_t *)0x16, (ground_alt/100));
-#endif	
+
 	groundstartDone = true;
 	debug_handler(6);
 }
@@ -558,20 +579,15 @@ void startup_air(void)
   {
     eeprom_busy_wait();
     temp = eeprom_read_word((uint16_t *)	(y*2+2));
-    AN_OFFSET[y] = temp/100.f+200.f;	
+    #if BOARD_VERSION < 3
+    AN_OFFSET[y] = temp/100.f+200.f;
+    #endif
+    #if BOARD_VERSION == 3
+    AN_OFFSET[y] = temp;
+    #endif	
     Serial.println(AN_OFFSET[y]);
   }
-#if USE_BAROMETER==1
-	eeprom_busy_wait();
-	press_gnd = eeprom_read_dword((uint32_t *) 0x10);
-	press_filt = press_gnd;	
-	eeprom_busy_wait();
-	temperature = eeprom_read_word((uint16_t *) 0x14);
-	eeprom_busy_wait();
-	ground_alt = eeprom_read_word((uint16_t *) 0x16);
-	ground_alt *= 100;
-#endif	
-      Serial.println("***Air Start complete");
+  Serial.println("***Air Start complete");
 }    
 
 
@@ -657,12 +673,5 @@ EEPROM memory map
 13 0x0D		..	
 14 0x0E		Unused
 15 0x0F		..
-16 0x10		Ground Pressure
-17 0x11		..
-18 0x12		..
-19 0x13		..
-20 0x14		Ground Temp
-21 0x15		..
-22 0x16		Ground Altitude
-23 0x17		..
+
 */
