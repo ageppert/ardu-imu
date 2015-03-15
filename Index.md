@@ -1,0 +1,16 @@
+# ArduIMU #
+
+  * [Home Page](HomePage.md)
+  * [ArduIMU V3](IntroductionPage.md)
+    * [What you need to complete ArduIMU V3](WhatNeed.md)
+    * [Getting Started](StartedPage.md)
+      * [Completing the hardware](Assembly.md)
+      * [Loading the code](Code.md)
+      * [Loading the demo program](Demo.md)
+      * [Using ArduIMU with ArduPilot](ArduPilot.md)
+    * [ArduIMU Output Format](Output.md)
+    * [User-configurable options](Configuration.md)
+    * [Theory of Operation](Theory.md)
+    * [LED Displays](LEDs.md)
+    * [Troubleshooting guide](Troubleshooting.md)
+  * [ArduIMU V4](ArduIMUV4.md)

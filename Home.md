@@ -1,0 +1,3 @@
+It's an Inertial Measure Unit (sensors and hardware filter circuitry) plus an Arduino-compatible processor that can run our Attitude Heading Reference System (AHRS) code, based on Bill Premerlani's DCM algorithm. This hardware consists of a 3 axis accelerometer and three gyro sensors, dual power regulator (3.3v and 5v), GPS port, an Atmega328@16mhz and a lot of status LED's. It's the cheapest IMU-AHRS on the market!
+Note: This IMU is not designed to work with ArduPilot as is, and is not a replacement for ArduPilot's thermopile sensors. We may in the future release versions that do work with ArduPilot, but this version is designed as a stand-alone IMU/AHRS, for use with your own projects.
+Includes the pin headers and all the sensors needed, some assembly is required.

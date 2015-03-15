@@ -1,0 +1,14 @@
+-Flat Design.
+-Low cost.
+-3 Axis Accelerometer.
+-3 Axis Gyroscope
+-Arduino Compatible.
+-Source Code included and Open Source!
+-Power LED (Green).
+-Status LEDs (Red, Blue, Yellow).
+-1 SPI port.
+-1 I2C port (possible expansion shield with magnetometers).
+-Two PWM outputs (for servos).
+-GPS port (uBlox ready!).
+-Protection diode.
+-Serial port output with servo standard connector for easy interface with any device (Ground, 5V, TX-OUT).
